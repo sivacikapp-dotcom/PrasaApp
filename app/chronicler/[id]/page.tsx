@@ -1,0 +1,480 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { sk } from "date-fns/locale";
+import { NavBar } from "@/components/NavBar";
+import { RouteGuard } from "@/components/RouteGuard";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { PageSpinner } from "@/components/ui/Spinner";
+import { VoiceRecorder } from "@/components/contributions/VoiceRecorder";
+import { PhotoUploader, type PhotoFile } from "@/components/contributions/PhotoUploader";
+import { getContribution, updateContributionByChronicler } from "@/lib/contributionService";
+import { getCategories, getTags } from "@/lib/categoryService";
+import { uploadChroniclerPhoto, uploadChroniclerVoice } from "@/lib/storageService";
+import { addContributionsToGroup, getEventGroups } from "@/lib/eventGroupService";
+import { addContributionsToEvent, getEvents } from "@/lib/eventService";
+import { GroupPickerModal } from "@/components/ui/GroupPickerModal";
+import { EventPickerModal } from "@/components/ui/EventPickerModal";
+import type { Contribution, Category, Tag, ChronicleEvent, EventGroup } from "@/types/contribution";
+
+const INPUT_CLS =
+  "w-full rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold";
+
+function ChroniclerDetailContent() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+
+  const [contribution, setContribution] = useState<Contribution | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [verifiedDate, setVerifiedDate] = useState("");
+  const [chroniclerText, setChroniclerText] = useState("");
+  const [voiceTranscripts, setVoiceTranscripts] = useState<string[]>([]);
+  const [newPhotos, setNewPhotos] = useState<PhotoFile[]>([]);
+  const [existingChroniclerPhotos, setExistingChroniclerPhotos] = useState<string[]>([]);
+  const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
+  const [chroniclerVoiceTranscript, setChroniclerVoiceTranscript] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [transcribingVoiceIndex, setTranscribingVoiceIndex] = useState<number | null>(null);
+  const [transcribingChroniclerVoice, setTranscribingChroniclerVoice] = useState(false);
+  const [groupPickerOpen, setGroupPickerOpen] = useState(false);
+  const [eventPickerOpen, setEventPickerOpen] = useState(false);
+  const [assignedFeedback, setAssignedFeedback] = useState<string | null>(null);
+  const [allGroups, setAllGroups] = useState<EventGroup[]>([]);
+  const [allEvents, setAllEvents] = useState<ChronicleEvent[]>([]);
+
+  useEffect(() => {
+    Promise.all([getContribution(id), getCategories(), getTags(), getEventGroups(), getEvents()]).then(([c, cats, ts, grps, evs]) => {
+      setAllGroups(grps);
+      setAllEvents(evs);
+      if (c) {
+        setContribution(c);
+        setVerifiedDate(c.verifiedEventDate ? format(c.verifiedEventDate, "yyyy-MM-dd") : "");
+        setChroniclerText(c.chroniclerText ?? "");
+        setVoiceTranscripts(c.voices.map((v) => v.transcript ?? ""));
+        setChroniclerVoiceTranscript(c.chroniclerVoiceTranscript ?? "");
+        setExistingChroniclerPhotos(c.chroniclerPhotoUrls);
+        setSelectedCategory(c.categories[0] ?? null);
+        setSelectedTags(c.hashtags);
+      }
+      setCategories(cats);
+      setTags(ts);
+      setLoading(false);
+    });
+  }, [id]);
+
+  function toggleTag(tagId: string) {
+    setSelectedTags((prev) => prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId]);
+  }
+
+  async function handleSave(markProcessed: boolean) {
+    if (!contribution) return;
+    setSaving(true);
+    const uploadedPhotos = await Promise.all(newPhotos.map((p) => uploadChroniclerPhoto(p.file, id)));
+    const allChroniclerPhotos = [...existingChroniclerPhotos, ...uploadedPhotos];
+    let chroniclerVoiceUrl = contribution.chroniclerVoiceUrl;
+    if (voiceBlob) chroniclerVoiceUrl = await uploadChroniclerVoice(voiceBlob, id);
+
+    const assignedCat = selectedCategory ? categories.find((c) => c.id === selectedCategory) : null;
+    const visibleToIds = [
+      contribution.contributorId,
+      ...(assignedCat?.allowedUserIds ?? []),
+    ].filter((v, i, a) => a.indexOf(v) === i);
+
+    const updatedVoices = contribution.voices.map((v, i) => ({
+      ...v,
+      transcript: voiceTranscripts[i]?.trim() || null,
+    }));
+
+    await updateContributionByChronicler(id, {
+      verifiedEventDate: verifiedDate ? new Date(verifiedDate) : null,
+      chroniclerText: chroniclerText.trim() || null,
+      chroniclerVoiceUrl,
+      chroniclerPhotoUrls: allChroniclerPhotos,
+      voices: updatedVoices,
+      chroniclerVoiceTranscript: chroniclerVoiceTranscript.trim() || null,
+      categories: selectedCategory ? [selectedCategory] : [],
+      hashtags: selectedTags,
+      visibleToIds,
+      ...(markProcessed ? { status: "processed" } : {}),
+    });
+
+    setNewPhotos([]);
+    setExistingChroniclerPhotos(allChroniclerPhotos);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+    if (markProcessed) router.push("/chronicler");
+  }
+
+  async function handleTranscribeVoice(index: number) {
+    const v = contribution?.voices[index];
+    if (!v?.url) return;
+    setTranscribingVoiceIndex(index);
+    try {
+      const res = await fetch("/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voiceUrl: v.url }),
+      });
+      const data = await res.json() as { transcript?: string; error?: string };
+      if (data.transcript) {
+        setVoiceTranscripts((prev) => {
+          const next = [...prev];
+          next[index] = data.transcript!;
+          return next;
+        });
+        const updatedVoices = (contribution?.voices ?? []).map((voice, i) =>
+          i === index ? { ...voice, transcript: data.transcript! } : voice
+        );
+        await updateContributionByChronicler(id, { voices: updatedVoices });
+      }
+    } finally {
+      setTranscribingVoiceIndex(null);
+    }
+  }
+
+  async function handleTranscribeChroniclerVoice() {
+    const url = contribution?.chroniclerVoiceUrl;
+    if (!url) return;
+    setTranscribingChroniclerVoice(true);
+    try {
+      const res = await fetch("/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voiceUrl: url }),
+      });
+      const data = await res.json() as { transcript?: string; error?: string };
+      if (data.transcript) {
+        setChroniclerVoiceTranscript(data.transcript);
+        await updateContributionByChronicler(id, { chroniclerVoiceTranscript: data.transcript });
+      }
+    } finally {
+      setTranscribingChroniclerVoice(false);
+    }
+  }
+
+  async function handleAssignToGroup(group: EventGroup) {
+    await addContributionsToGroup(group.id, [id]);
+    setContribution((prev) =>
+      prev && !prev.eventGroupIds.includes(group.id)
+        ? { ...prev, eventGroupIds: [...prev.eventGroupIds, group.id] }
+        : prev
+    );
+    setAssignedFeedback(`Zaradený do skupiny „${group.title}"`);
+    setTimeout(() => setAssignedFeedback(null), 3000);
+  }
+
+  async function handleAssignToEvent(event: ChronicleEvent) {
+    await addContributionsToEvent(event.id, [id]);
+    setAllEvents((prev) =>
+      prev.map((ev) =>
+        ev.id === event.id && !ev.contributionIds.includes(id)
+          ? { ...ev, contributionIds: [...ev.contributionIds, id] }
+          : ev
+      )
+    );
+    setAssignedFeedback(`Zaradený do udalosti „${event.title}"`);
+    setTimeout(() => setAssignedFeedback(null), 3000);
+  }
+
+  if (loading) return <><NavBar /><PageSpinner /></>;
+  if (!contribution) return <><NavBar /><div className="p-6 text-ink-dim">Príspevok neexistuje.</div></>;
+
+  const c = contribution;
+
+  // Find all groups and events this contribution belongs to
+  const linkedGroups = allGroups.filter((g) => c.eventGroupIds.includes(g.id));
+  const linkedEvents = allEvents.filter((ev) => ev.contributionIds.includes(id));
+
+  return (
+    <>
+      <NavBar />
+      <main className="mx-auto max-w-2xl px-4 py-6 pb-28 space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="text-ink-subtle hover:text-ink-dim">
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 12H5M12 5l-7 7 7 7" /></svg>
+          </button>
+          <div className="flex-1">
+            <p className="text-xs text-ink-subtle">
+              {c.contributorName} · {format(c.recordedAt, "d.M.yyyy HH:mm", { locale: sk })}
+            </p>
+            <p className="text-xs font-medium text-gold">
+              Udalosť: {format(c.eventDate, "d. MMMM yyyy", { locale: sk })}
+            </p>
+          </div>
+          <Badge color={c.status === "processed" ? "green" : "amber"}>
+            {c.status === "processed" ? "Spracovaný" : "Čaká"}
+          </Badge>
+        </div>
+
+        {/* Original contribution */}
+        <section className="rounded-xl bg-surface border border-rim p-4 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Pôvodný príspevok</h2>
+          {c.texts.map((t, i) => (
+            <p key={i} className="text-sm text-ink whitespace-pre-wrap">{t}</p>
+          ))}
+          {c.photoUrls.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {c.photoUrls.map((url) => (
+                <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-surface-high">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
+          {c.voices.length > 0 && (
+            <div className="space-y-2">
+              {c.voices.map((v, i) => (
+                <div key={v.url} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <audio src={v.url} controls className="flex-1 h-8 min-w-0" />
+                    <button
+                      type="button"
+                      onClick={() => handleTranscribeVoice(i)}
+                      disabled={transcribingVoiceIndex === i}
+                      className="shrink-0 flex items-center gap-1.5 rounded-lg border border-rim px-2.5 py-1.5 text-xs text-ink-dim hover:bg-surface-high hover:text-ink disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                    >
+                      {transcribingVoiceIndex === i ? <><SpinnerIcon />Prepisujem…</> : "Generovať prepis"}
+                    </button>
+                  </div>
+                  {voiceTranscripts[i] && (
+                    <p className="text-xs text-ink-dim italic leading-relaxed">{voiceTranscripts[i]}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {c.location && (
+            <a href={`https://maps.google.com/?q=${c.location.latitude},${c.location.longitude}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-gold hover:underline">
+              📍 {c.locationName ?? `${c.location.latitude.toFixed(5)}, ${c.location.longitude.toFixed(5)}`}
+            </a>
+          )}
+        </section>
+
+        {/* Chronicler additions */}
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Doplnenie kronikárom</h2>
+
+          <div>
+            <label className="block text-sm font-medium text-ink-dim mb-1.5">Verifikovaný dátum udalosti</label>
+            <input type="date" value={verifiedDate} onChange={(e) => setVerifiedDate(e.target.value)} className={INPUT_CLS} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-ink-dim mb-1.5">Text kronikára</label>
+            <textarea value={chroniclerText} onChange={(e) => setChroniclerText(e.target.value)}
+              placeholder="Vlastný text k udalosti…" rows={4} className={`${INPUT_CLS} resize-none`} />
+          </div>
+
+          {c.voices.length > 0 && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-ink-dim">
+                {c.voices.length === 1 ? "Prepis hlasovej správy" : "Prepisy hlasových správ"}
+              </label>
+              {c.voices.map((_, i) => (
+                <textarea
+                  key={i}
+                  value={voiceTranscripts[i] ?? ""}
+                  onChange={(e) => setVoiceTranscripts((prev) => { const next = [...prev]; next[i] = e.target.value; return next; })}
+                  placeholder={c.voices.length > 1 ? `Prepis správy ${i + 1}…` : "Textový prepis hlasovej správy…"}
+                  rows={2}
+                  className={`${INPUT_CLS} resize-none`}
+                />
+              ))}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-ink-dim mb-2">Fotografie kronikára</label>
+            <PhotoUploader photos={newPhotos} existingUrls={existingChroniclerPhotos} onChange={setNewPhotos}
+              onDeleteExisting={(url) => setExistingChroniclerPhotos((prev) => prev.filter((u) => u !== url))} />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-ink-dim">Hlasová správa kronikára</label>
+            <VoiceRecorder existingUrl={c.chroniclerVoiceUrl} maxSeconds={300} onRecorded={setVoiceBlob} onDelete={() => setVoiceBlob(null)} />
+            {c.chroniclerVoiceUrl && (
+              <button
+                type="button"
+                onClick={() => handleTranscribeChroniclerVoice()}
+                disabled={transcribingChroniclerVoice}
+                className="flex items-center gap-1.5 rounded-lg border border-rim px-2.5 py-1.5 text-xs text-ink-dim hover:bg-surface-high hover:text-ink disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                {transcribingChroniclerVoice ? <><SpinnerIcon />Prepisujem…</> : "Generovať prepis"}
+              </button>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-ink-dim mb-1.5">Prepis hlasovej správy kronikára</label>
+            <textarea
+              value={chroniclerVoiceTranscript}
+              onChange={(e) => setChroniclerVoiceTranscript(e.target.value)}
+              placeholder="Textový prepis hlasovej správy kronikára…"
+              rows={2}
+              className={`${INPUT_CLS} resize-none`}
+            />
+          </div>
+
+          {categories.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-ink-dim mb-2">Kategória</label>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+                    className={`rounded-full px-3 py-1 text-sm font-medium transition-colors border ${
+                      selectedCategory === cat.id
+                        ? "border-transparent text-gold-text"
+                        : "bg-transparent text-ink-dim border-rim hover:border-rim-strong"
+                    }`}
+                    style={selectedCategory === cat.id ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[10px] text-ink-subtle">Každý príspevok môže mať iba jednu kategóriu.</p>
+            </div>
+          )}
+
+          {tags.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-ink-dim mb-2">Hashtagy</label>
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <button key={tag.id} type="button" onClick={() => toggleTag(tag.id)}
+                    className={`rounded-full px-3 py-1 text-sm transition-colors border ${
+                      selectedTags.includes(tag.id)
+                        ? "bg-gold-dim text-gold border-gold/40"
+                        : "bg-transparent text-ink-dim border-rim hover:border-rim-strong"
+                    }`}>
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Assign to group / event */}
+        <section className="rounded-xl border border-rim bg-surface p-4 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Zaradenie</h2>
+
+          {/* Current assignments */}
+          {(linkedGroups.length > 0 || linkedEvents.length > 0) && (
+            <div className="flex flex-wrap gap-2">
+              {linkedGroups.map((group) => (
+                <Link
+                  key={group.id}
+                  href="/chronicler"
+                  className="flex items-center gap-1.5 rounded-lg bg-surface-high border border-rim px-2.5 py-1.5 text-xs text-ink hover:border-gold hover:text-gold"
+                >
+                  <FolderIcon /> {group.title}
+                </Link>
+              ))}
+              {linkedEvents.map((event) => (
+                <Link
+                  key={event.id}
+                  href={`/chronicler/events/${event.id}`}
+                  className="flex items-center gap-1.5 rounded-lg bg-gold-dim border border-gold/30 px-2.5 py-1.5 text-xs text-gold hover:border-gold"
+                >
+                  <CalendarIcon /> {event.title}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* Assign buttons */}
+          <div className="flex gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setGroupPickerOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-rim px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink"
+            >
+              <FolderIcon /> Do skupiny
+            </button>
+            <button
+              type="button"
+              onClick={() => setEventPickerOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-rim px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink"
+            >
+              <CalendarIcon /> Do udalosti
+            </button>
+          </div>
+          {assignedFeedback && (
+            <p className="text-xs text-success font-medium">✓ {assignedFeedback}</p>
+          )}
+        </section>
+      </main>
+
+      {/* Sticky action bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-rim px-4 py-3 flex gap-3">
+        <Button variant="secondary" className="flex-1" loading={saving} onClick={() => handleSave(false)}>
+          {saved ? "✓ Uložené" : "Uložiť"}
+        </Button>
+        <Button variant="primary" className="flex-1" loading={saving} onClick={() => handleSave(true)}>
+          Označiť ako spracovaný
+        </Button>
+      </div>
+
+      <GroupPickerModal
+        open={groupPickerOpen}
+        onConfirm={handleAssignToGroup}
+        onClose={() => setGroupPickerOpen(false)}
+      />
+      <EventPickerModal
+        open={eventPickerOpen}
+        onConfirm={handleAssignToEvent}
+        onClose={() => setEventPickerOpen(false)}
+      />
+    </>
+  );
+}
+
+export default function ChroniclerDetailPage() {
+  return <RouteGuard requiredRole="chronicler"><ChroniclerDetailContent /></RouteGuard>;
+}
+
+function SpinnerIcon() {
+  return (
+    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    </svg>
+  );
+}
+
+function FolderIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}

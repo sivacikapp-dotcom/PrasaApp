@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function roles() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles;
+    }
+
+    function status() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status;
+    }
+
+    function isActive() {
+      return isAuth() && status() == 'active';
+    }
+
+    function hasRole(role) {
+      return isActive() && role in roles();
+    }
+
+    function isAdmin()       { return hasRole('admin'); }
+    function isChronicler()  { return hasRole('chronicler'); }
+    function isContributor() { return hasRole('contributor'); }
+
+    // ── users ────────────────────────────────────────────────────────
+    match /users/{uid} {
+      // Anyone authenticated can read users (needed for name display)
+      allow read: if isAuth();
+      // Self-create on first sign-in
+      allow create: if request.auth.uid == uid;
+      // Self-update limited fields; admins can update anything
+      allow update: if isAdmin()
+                    || (request.auth.uid == uid
+                        && request.resource.data.roles == resource.data.roles
+                        && request.resource.data.status == resource.data.status);
+      allow delete: if isAdmin();
+    }
+
+    // ── contributions ─────────────────────────────────────────────────
+    match /contributions/{docId} {
+      // Admin/chronicler see everything.
+      // Contributor sees: own posts (any status) + processed posts in categories
+      // they have access to. Access is denormalised into visibleToIds on each doc.
+      allow read: if isAdmin()
+                  || isChronicler()
+                  || (isContributor() && request.auth.uid in resource.data.visibleToIds);
+      allow create: if isContributor() || isChronicler();
+      allow update: if isChronicler()
+                    || isAdmin()
+                    || (isContributor()
+                        && resource.data.contributorId == request.auth.uid
+                        && resource.data.status == 'pending');
+      // Admin can delete anything; contributor can delete own pending posts.
+      allow delete: if isAdmin()
+                    || (isContributor()
+                        && resource.data.contributorId == request.auth.uid
+                        && resource.data.status == 'pending');
+    }
+
+    // ── categories ────────────────────────────────────────────────────
+    match /categories/{docId} {
+      allow read: if isActive();
+      allow write: if isChronicler() || isAdmin();
+    }
+
+    // ── tags (hashtags) ───────────────────────────────────────────────
+    match /tags/{docId} {
+      allow read: if isActive();
+      allow write: if isChronicler() || isAdmin();
+    }
+
+    // ── eventGroups (simple grouping container) ──────────────────────
+    match /eventGroups/{docId} {
+      allow read: if isActive();
+      allow write: if isChronicler() || isAdmin();
+    }
+
+    // ── events (chronicle events with compiled summaries) ─────────────
+    match /events/{docId} {
+      allow read: if isActive();
+      allow write: if isChronicler() || isAdmin();
+    }
+  }
+}

@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* ── Design tokens ───────────────────────────────────────────────────────── */
+@theme {
+  /* Backgrounds */
+  --color-canvas:       #1A1005;   /* main page background */
+  --color-surface:      #2A1C0A;   /* cards, panels */
+  --color-surface-high: #382510;   /* modals, dropdowns, elevated */
+  --color-rim:          #58401C;   /* borders */
+  --color-rim-strong:   #70522A;   /* strong borders / dividers */
+
+  /* Text */
+  --color-ink:          #F5F0DC;   /* primary text */
+  --color-ink-dim:      #CFC0A0;   /* secondary / muted text */
+  --color-ink-subtle:   #9A8A6A;   /* placeholder, disabled */
+
+  /* Accent */
+  --color-gold:         #D4A843;   /* primary action colour */
+  --color-gold-hover:   #E0B84A;
+  --color-gold-dim:     #6A4E18;   /* subtle gold tint for backgrounds */
+  --color-gold-text:    #1A0E00;   /* text on gold background */
+
+  /* Semantic */
+  --color-success:      #5A9F4A;
+  --color-success-dim:  #1E3A18;
+  --color-warning:      #C07830;
+  --color-warning-dim:  #3A2208;
+  --color-danger:       #C03838;
+  --color-danger-dim:   #3A1010;
+}
+
+/* ── Base styles ─────────────────────────────────────────────────────────── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-rim);
+    outline-color: var(--color-gold);
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Inputs, textareas, selects */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  textarea,
+  select {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    border-color: var(--color-rim);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-ink-subtle);
+  }
+
+  /* Native date picker icon colour (Chromium) */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.85) sepia(0.3) saturate(0.5);
+  }
+
+  /* Audio player */
+  audio {
+    filter: invert(0.85) hue-rotate(180deg) sepia(0.2);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--color-canvas); }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-rim);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-rim-strong); }
+}
+
+/* ── Utility: hide scrollbar while keeping scroll ────────────────────────── */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

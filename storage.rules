@@ -1,0 +1,38 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function userData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActive() {
+      return isAuth() && userData().status == 'active';
+    }
+
+    function hasRole(role) {
+      return isActive() && role in userData().roles;
+    }
+
+    // Contributor media — each contributor writes only to their own uid folder
+    match /contributions/{uid}/{allPaths=**} {
+      allow read:  if isAuth();
+      allow write: if hasRole('contributor') && request.auth.uid == uid;
+    }
+
+    // Chronicler media — only chroniclers and admins may write
+    match /chronicler/{allPaths=**} {
+      allow read:  if isAuth();
+      allow write: if hasRole('chronicler') || hasRole('admin');
+    }
+
+    // Deny everything else explicitly
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
