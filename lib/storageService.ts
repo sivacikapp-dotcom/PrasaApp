@@ -36,6 +36,18 @@ export async function uploadVideo(
   return getDownloadURL(storageRef);
 }
 
+export async function uploadVideoBlob(
+  blob: Blob,
+  contributionId: string,
+  uid: string
+): Promise<string> {
+  const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+  const path = `contributions/${uid}/${contributionId}/video_${Date.now()}.${ext}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, blob);
+  return getDownloadURL(storageRef);
+}
+
 export async function uploadVoice(
   blob: Blob,
   contributionId: string,

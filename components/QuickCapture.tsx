@@ -4,18 +4,31 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/hooks/useLocation";
 import { createContribution, updateContribution } from "@/lib/contributionService";
-import { uploadPhoto, uploadVoice } from "@/lib/storageService";
+import { uploadPhoto, uploadVoice, uploadVideoBlob } from "@/lib/storageService";
 import { getLocationName } from "@/lib/geocoding";
 import { savePending } from "@/lib/offlineDb";
 
 type CaptureStatus = "idle" | "uploading" | "success" | "offline" | "error";
 
-function pickMimeType(): string {
+function pickAudioMimeType(): string {
   const candidates = [
     "audio/mp4;codecs=mp4a.40.2",
     "audio/mp4",
     "audio/webm;codecs=opus",
     "audio/webm",
+  ];
+  for (const t of candidates) {
+    if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return "";
+}
+
+function pickVideoMimeType(): string {
+  const candidates = [
+    "video/mp4",
+    "video/webm;codecs=vp9,opus",
+    "video/webm;codecs=vp8,opus",
+    "video/webm",
   ];
   for (const t of candidates) {
     if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) return t;
@@ -34,15 +47,27 @@ export function QuickCapture() {
   const { state: locState, capture: captureLocation } = useLocation();
 
   const [captureStatus, setCaptureStatus] = useState<CaptureStatus>("idle");
-  const [recording, setRecording] = useState(false);
-  const [recSeconds, setRecSeconds] = useState(0);
+
+  // Voice state
+  const [voiceReady, setVoiceReady] = useState(false);
+  const [voiceRecording, setVoiceRecording] = useState(false);
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
+
+  // Video state
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoRecording, setVideoRecording] = useState(false);
+  const [videoSeconds, setVideoSeconds] = useState(0);
 
   const cameraRef = useRef<HTMLInputElement>(null);
-  const mediaRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Silently acquire GPS when component mounts
+  const voiceMediaRef = useRef<MediaRecorder | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const voiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const videoMediaRef = useRef<MediaRecorder | null>(null);
+  const videoChunksRef = useRef<Blob[]>([]);
+  const videoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     captureLocation();
   }, [captureLocation]);
@@ -98,28 +123,29 @@ export function QuickCapture() {
     }
   }
 
+  // ── Voice ────────────────────────────────────────────────────────────────
+
   async function startVoice() {
     if (!appUser) return;
+    setVoiceReady(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = pickMimeType();
+      const mimeType = pickAudioMimeType();
       const mr = mimeType
         ? new MediaRecorder(stream, { mimeType })
         : new MediaRecorder(stream);
 
-      chunksRef.current = [];
+      voiceChunksRef.current = [];
       mr.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data.size > 0) voiceChunksRef.current.push(e.data);
       };
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        if (timerRef.current) clearInterval(timerRef.current);
-        setRecording(false);
+        if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+        setVoiceRecording(false);
         setCaptureStatus("uploading");
         try {
-          const blob = new Blob(chunksRef.current, {
-            type: mimeType || "audio/mp4",
-          });
+          const blob = new Blob(voiceChunksRef.current, { type: mimeType || "audio/mp4" });
           const loc = getLocation();
           if (!navigator.onLine) {
             await savePending({
@@ -161,24 +187,105 @@ export function QuickCapture() {
       };
 
       mr.start(250);
-      mediaRef.current = mr;
-      setRecording(true);
-      setRecSeconds(0);
-      timerRef.current = setInterval(() => setRecSeconds((s) => s + 1), 1000);
+      voiceMediaRef.current = mr;
+      setVoiceRecording(true);
+      setVoiceSeconds(0);
+      voiceTimerRef.current = setInterval(() => setVoiceSeconds((s) => s + 1), 1000);
     } catch {
-      // Mic access denied — silently ignore
+      setVoiceReady(false);
     }
   }
 
   function stopVoice() {
-    mediaRef.current?.stop();
+    voiceMediaRef.current?.stop();
+  }
+
+  // ── Video ────────────────────────────────────────────────────────────────
+
+  async function startVideo() {
+    if (!appUser) return;
+    setVideoReady(false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: true,
+      });
+      const mimeType = pickVideoMimeType();
+      const mr = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      videoChunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) videoChunksRef.current.push(e.data);
+      };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (videoTimerRef.current) clearInterval(videoTimerRef.current);
+        setVideoRecording(false);
+        setCaptureStatus("uploading");
+        try {
+          const blob = new Blob(videoChunksRef.current, { type: mimeType || "video/mp4" });
+          const loc = getLocation();
+          if (!navigator.onLine) {
+            await savePending({
+              id: crypto.randomUUID(),
+              contributorId: appUser.uid,
+              contributorName: appUser.displayName,
+              eventDate: new Date().toISOString(),
+              texts: [],
+              location: loc,
+              locationName: null,
+              photoBlobs: [],
+              videoBlobs: [blob],
+              voiceBlobs: [],
+              createdAt: new Date().toISOString(),
+            });
+            setCaptureStatus("offline");
+          } else {
+            const locationName = loc ? await getLocationName(loc.latitude, loc.longitude) : null;
+            const contribId = await createContribution({
+              contributorId: appUser.uid,
+              contributorName: appUser.displayName,
+              eventDate: new Date(),
+              texts: [],
+              photoUrls: [],
+              videoUrls: [],
+              voices: [],
+              location: loc,
+              locationName,
+            });
+            const videoUrl = await uploadVideoBlob(blob, contribId, appUser.uid);
+            await updateContribution(contribId, { videoUrls: [videoUrl] });
+            setCaptureStatus("success");
+          }
+        } catch {
+          setCaptureStatus("error");
+        } finally {
+          setTimeout(() => setCaptureStatus("idle"), 3000);
+        }
+      };
+
+      mr.start(250);
+      videoMediaRef.current = mr;
+      setVideoRecording(true);
+      setVideoSeconds(0);
+      videoTimerRef.current = setInterval(() => setVideoSeconds((s) => s + 1), 1000);
+    } catch {
+      setVideoReady(false);
+    }
+  }
+
+  function stopVideo() {
+    videoMediaRef.current?.stop();
   }
 
   const busy = captureStatus === "uploading";
+  const anyRecording = voiceRecording || videoRecording;
 
   return (
     <div className="mb-5 rounded-xl border border-rim bg-surface p-4">
-      {/* Header row */}
+      {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
           Rýchle zachytenie
@@ -186,13 +293,14 @@ export function QuickCapture() {
         <GpsIndicator status={locState.status} onRetry={captureLocation} />
       </div>
 
-      {/* Buttons */}
+      {/* Buttons row */}
       <div className="flex flex-wrap gap-2">
+
         {/* Camera */}
         <button
           type="button"
           onClick={() => cameraRef.current?.click()}
-          disabled={busy || recording}
+          disabled={busy || anyRecording || voiceReady || videoReady}
           className="flex items-center gap-2 rounded-xl bg-gold px-4 py-2.5 text-sm font-semibold text-gold-text shadow-sm active:scale-95 transition-transform disabled:opacity-50"
         >
           <CameraIcon />
@@ -208,24 +316,86 @@ export function QuickCapture() {
         />
 
         {/* Voice */}
-        {!recording ? (
+        {!voiceReady && !voiceRecording && (
           <button
             type="button"
-            onClick={startVoice}
-            disabled={busy}
+            onClick={() => setVoiceReady(true)}
+            disabled={busy || anyRecording || videoReady}
             className="flex items-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
           >
             <MicIcon />
             Nahrať hlas
           </button>
-        ) : (
+        )}
+        {voiceReady && !voiceRecording && (
+          <>
+            <button
+              type="button"
+              onClick={startVoice}
+              className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-ink active:scale-95 transition-transform"
+            >
+              <span className="h-2 w-2 rounded-full bg-ink" />
+              Spustiť nahrávanie
+            </button>
+            <button
+              type="button"
+              onClick={() => setVoiceReady(false)}
+              className="flex items-center gap-2 rounded-xl border border-rim px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform"
+            >
+              Zrušiť
+            </button>
+          </>
+        )}
+        {voiceRecording && (
           <button
             type="button"
             onClick={stopVoice}
             className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-ink active:scale-95 transition-transform"
           >
             <span className="h-2 w-2 rounded-full bg-ink animate-pulse" />
-            {fmtTime(recSeconds)} – Zastaviť
+            {fmtTime(voiceSeconds)} – Zastaviť
+          </button>
+        )}
+
+        {/* Video */}
+        {!videoReady && !videoRecording && (
+          <button
+            type="button"
+            onClick={() => setVideoReady(true)}
+            disabled={busy || anyRecording || voiceReady}
+            className="flex items-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
+          >
+            <VideoIcon />
+            Nahrať video
+          </button>
+        )}
+        {videoReady && !videoRecording && (
+          <>
+            <button
+              type="button"
+              onClick={startVideo}
+              className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-ink active:scale-95 transition-transform"
+            >
+              <span className="h-2 w-2 rounded-full bg-ink" />
+              Spustiť nahrávanie
+            </button>
+            <button
+              type="button"
+              onClick={() => setVideoReady(false)}
+              className="flex items-center gap-2 rounded-xl border border-rim px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform"
+            >
+              Zrušiť
+            </button>
+          </>
+        )}
+        {videoRecording && (
+          <button
+            type="button"
+            onClick={stopVideo}
+            className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-ink active:scale-95 transition-transform"
+          >
+            <span className="h-2 w-2 rounded-full bg-ink animate-pulse" />
+            {fmtTime(videoSeconds)} – Zastaviť video
           </button>
         )}
       </div>
@@ -247,31 +417,11 @@ export function QuickCapture() {
   );
 }
 
-function GpsIndicator({
-  status,
-  onRetry,
-}: {
-  status: string;
-  onRetry: () => void;
-}) {
-  if (status === "ok") {
-    return (
-      <span className="flex items-center gap-1 text-xs text-success">
-        <PinIcon /> GPS
-      </span>
-    );
-  }
-  if (status === "loading") {
-    return <span className="text-xs text-ink-subtle">GPS…</span>;
-  }
-  if (status === "denied") {
-    return <span className="text-xs text-ink-subtle">GPS nedostupné</span>;
-  }
-  return (
-    <button onClick={onRetry} className="text-xs text-gold hover:underline">
-      Zachytiť GPS
-    </button>
-  );
+function GpsIndicator({ status, onRetry }: { status: string; onRetry: () => void }) {
+  if (status === "ok") return <span className="flex items-center gap-1 text-xs text-success"><PinIcon /> GPS</span>;
+  if (status === "loading") return <span className="text-xs text-ink-subtle">GPS…</span>;
+  if (status === "denied") return <span className="text-xs text-ink-subtle">GPS nedostupné</span>;
+  return <button onClick={onRetry} className="text-xs text-gold hover:underline">Zachytiť GPS</button>;
 }
 
 function CameraIcon() {
@@ -288,6 +438,15 @@ function MicIcon() {
     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
       <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" />
+    </svg>
+  );
+}
+
+function VideoIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <polygon points="23 7 16 12 23 17 23 7" />
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
     </svg>
   );
 }
