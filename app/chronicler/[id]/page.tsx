@@ -46,8 +46,8 @@ function ChroniclerDetailContent() {
   const [saved, setSaved] = useState(false);
   const [transcribingVoiceIndex, setTranscribingVoiceIndex] = useState<number | null>(null);
   const [transcribingChroniclerVoice, setTranscribingChroniclerVoice] = useState(false);
-  const [transcribeVoiceError, setTranscribeVoiceError] = useState<number | null>(null);
-  const [transcribeChroniclerError, setTranscribeChroniclerError] = useState(false);
+  const [transcribeVoiceError, setTranscribeVoiceError] = useState<{ index: number; msg: string } | null>(null);
+  const [transcribeChroniclerError, setTranscribeChroniclerError] = useState<string | null>(null);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
   const [eventPickerOpen, setEventPickerOpen] = useState(false);
   const [assignedFeedback, setAssignedFeedback] = useState<string | null>(null);
@@ -141,10 +141,10 @@ function ChroniclerDetailContent() {
         );
         await updateContributionByChronicler(id, { voices: updatedVoices });
       } else {
-        setTranscribeVoiceError(index);
+        setTranscribeVoiceError({ index, msg: data.error ?? "Neznáma chyba" });
       }
-    } catch {
-      setTranscribeVoiceError(index);
+    } catch (err) {
+      setTranscribeVoiceError({ index, msg: err instanceof Error ? err.message : "Neznáma chyba" });
     } finally {
       setTranscribingVoiceIndex(null);
     }
@@ -154,7 +154,7 @@ function ChroniclerDetailContent() {
     const url = contribution?.chroniclerVoiceUrl;
     if (!url) return;
     setTranscribingChroniclerVoice(true);
-    setTranscribeChroniclerError(false);
+    setTranscribeChroniclerError(null);
     try {
       const res = await fetch("/api/transcribe", {
         method: "POST",
@@ -166,10 +166,10 @@ function ChroniclerDetailContent() {
         setChroniclerVoiceTranscript(data.transcript);
         await updateContributionByChronicler(id, { chroniclerVoiceTranscript: data.transcript });
       } else {
-        setTranscribeChroniclerError(true);
+        setTranscribeChroniclerError(data.error ?? "Neznáma chyba");
       }
-    } catch {
-      setTranscribeChroniclerError(true);
+    } catch (err) {
+      setTranscribeChroniclerError(err instanceof Error ? err.message : "Neznáma chyba");
     } finally {
       setTranscribingChroniclerVoice(false);
     }
@@ -261,8 +261,8 @@ function ChroniclerDetailContent() {
                       {transcribingVoiceIndex === i ? <><SpinnerIcon />Prepisujem…</> : "Generovať prepis"}
                     </button>
                   </div>
-                  {transcribeVoiceError === i && (
-                    <p className="text-xs text-danger">Prepis zlyhal. Skontrolujte konfiguráciu API kľúča na serveri.</p>
+                  {transcribeVoiceError?.index === i && (
+                    <p className="text-xs text-danger">Prepis zlyhal: {transcribeVoiceError.msg}</p>
                   )}
                   {voiceTranscripts[i] && (
                     <p className="text-xs text-ink-dim italic leading-relaxed">{voiceTranscripts[i]}</p>
@@ -333,7 +333,7 @@ function ChroniclerDetailContent() {
                   {transcribingChroniclerVoice ? <><SpinnerIcon />Prepisujem…</> : "Generovať prepis"}
                 </button>
                 {transcribeChroniclerError && (
-                  <p className="text-xs text-danger">Prepis zlyhal. Skontrolujte konfiguráciu API kľúča na serveri.</p>
+                  <p className="text-xs text-danger">Prepis zlyhal: {transcribeChroniclerError}</p>
                 )}
               </>
             )}
