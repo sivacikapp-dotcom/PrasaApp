@@ -26,6 +26,8 @@ type EventAssignmentFilter = "all" | "in-events" | "not-in-events";
 type OrgTab = "groups" | "events";
 type SortKey = "date-desc" | "date-asc" | "contributor-asc" | "contributor-desc";
 
+const FILTER_STORAGE_KEY = "chronicler-filter-v1";
+
 function ChroniclerContent() {
   const { appUser } = useAuth();
   const router = useRouter();
@@ -48,6 +50,51 @@ function ChroniclerContent() {
   const [filterEventAssignment, setFilterEventAssignment] = useState<EventAssignmentFilter>("all");
   const [filterEventCategories, setFilterEventCategories] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>("date-desc");
+
+  // Track whether sessionStorage has been loaded (avoids saving defaults over stored values)
+  const [filterLoaded, setFilterLoaded] = useState(false);
+
+  // Restore filter from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(FILTER_STORAGE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw) as Record<string, unknown>;
+        if (s.contribFilter) setContribFilter(s.contribFilter as ContribFilter);
+        if (s.orgTab) setOrgTab(s.orgTab as OrgTab);
+        if (typeof s.filterDateFrom === "string") setFilterDateFrom(s.filterDateFrom);
+        if (typeof s.filterDateTo === "string") setFilterDateTo(s.filterDateTo);
+        if (Array.isArray(s.filterContributors)) setFilterContributors(new Set(s.filterContributors as string[]));
+        if (Array.isArray(s.filterGroups)) setFilterGroups(new Set(s.filterGroups as string[]));
+        if (Array.isArray(s.filterEvents)) setFilterEvents(new Set(s.filterEvents as string[]));
+        if (s.filterEventAssignment) setFilterEventAssignment(s.filterEventAssignment as EventAssignmentFilter);
+        if (Array.isArray(s.filterEventCategories)) setFilterEventCategories(new Set(s.filterEventCategories as string[]));
+        if (s.sortKey) setSortKey(s.sortKey as SortKey);
+        if (typeof s.search === "string") setSearch(s.search);
+      }
+    } catch { /* ignore */ }
+    setFilterLoaded(true);
+  }, []);
+
+  // Persist filter to sessionStorage whenever it changes (only after initial load)
+  useEffect(() => {
+    if (!filterLoaded) return;
+    try {
+      sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({
+        contribFilter,
+        orgTab,
+        filterDateFrom,
+        filterDateTo,
+        filterContributors: [...filterContributors],
+        filterGroups: [...filterGroups],
+        filterEvents: [...filterEvents],
+        filterEventAssignment,
+        filterEventCategories: [...filterEventCategories],
+        sortKey,
+        search,
+      }));
+    } catch { /* ignore */ }
+  }, [filterLoaded, contribFilter, orgTab, filterDateFrom, filterDateTo, filterContributors, filterGroups, filterEvents, filterEventAssignment, filterEventCategories, sortKey, search]);
 
   // Selection mode
   const [selectMode, setSelectMode] = useState(false);

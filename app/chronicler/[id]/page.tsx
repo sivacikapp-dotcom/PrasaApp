@@ -46,6 +46,8 @@ function ChroniclerDetailContent() {
   const [saved, setSaved] = useState(false);
   const [transcribingVoiceIndex, setTranscribingVoiceIndex] = useState<number | null>(null);
   const [transcribingChroniclerVoice, setTranscribingChroniclerVoice] = useState(false);
+  const [transcribeVoiceError, setTranscribeVoiceError] = useState<number | null>(null);
+  const [transcribeChroniclerError, setTranscribeChroniclerError] = useState(false);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
   const [eventPickerOpen, setEventPickerOpen] = useState(false);
   const [assignedFeedback, setAssignedFeedback] = useState<string | null>(null);
@@ -120,6 +122,7 @@ function ChroniclerDetailContent() {
     const v = contribution?.voices[index];
     if (!v?.url) return;
     setTranscribingVoiceIndex(index);
+    setTranscribeVoiceError(null);
     try {
       const res = await fetch("/api/transcribe", {
         method: "POST",
@@ -137,7 +140,11 @@ function ChroniclerDetailContent() {
           i === index ? { ...voice, transcript: data.transcript! } : voice
         );
         await updateContributionByChronicler(id, { voices: updatedVoices });
+      } else {
+        setTranscribeVoiceError(index);
       }
+    } catch {
+      setTranscribeVoiceError(index);
     } finally {
       setTranscribingVoiceIndex(null);
     }
@@ -147,6 +154,7 @@ function ChroniclerDetailContent() {
     const url = contribution?.chroniclerVoiceUrl;
     if (!url) return;
     setTranscribingChroniclerVoice(true);
+    setTranscribeChroniclerError(false);
     try {
       const res = await fetch("/api/transcribe", {
         method: "POST",
@@ -157,7 +165,11 @@ function ChroniclerDetailContent() {
       if (data.transcript) {
         setChroniclerVoiceTranscript(data.transcript);
         await updateContributionByChronicler(id, { chroniclerVoiceTranscript: data.transcript });
+      } else {
+        setTranscribeChroniclerError(true);
       }
+    } catch {
+      setTranscribeChroniclerError(true);
     } finally {
       setTranscribingChroniclerVoice(false);
     }
@@ -249,6 +261,9 @@ function ChroniclerDetailContent() {
                       {transcribingVoiceIndex === i ? <><SpinnerIcon />Prepisujem…</> : "Generovať prepis"}
                     </button>
                   </div>
+                  {transcribeVoiceError === i && (
+                    <p className="text-xs text-danger">Prepis zlyhal. Skontrolujte konfiguráciu API kľúča na serveri.</p>
+                  )}
                   {voiceTranscripts[i] && (
                     <p className="text-xs text-ink-dim italic leading-relaxed">{voiceTranscripts[i]}</p>
                   )}
@@ -308,14 +323,19 @@ function ChroniclerDetailContent() {
             <label className="block text-sm font-medium text-ink-dim">Hlasová správa kronikára</label>
             <VoiceRecorder existingUrl={c.chroniclerVoiceUrl} maxSeconds={300} onRecorded={setVoiceBlob} onDelete={() => setVoiceBlob(null)} />
             {c.chroniclerVoiceUrl && (
-              <button
-                type="button"
-                onClick={() => handleTranscribeChroniclerVoice()}
-                disabled={transcribingChroniclerVoice}
-                className="flex items-center gap-1.5 rounded-lg border border-rim px-2.5 py-1.5 text-xs text-ink-dim hover:bg-surface-high hover:text-ink disabled:opacity-50 disabled:pointer-events-none transition-colors"
-              >
-                {transcribingChroniclerVoice ? <><SpinnerIcon />Prepisujem…</> : "Generovať prepis"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleTranscribeChroniclerVoice()}
+                  disabled={transcribingChroniclerVoice}
+                  className="flex items-center gap-1.5 rounded-lg border border-rim px-2.5 py-1.5 text-xs text-ink-dim hover:bg-surface-high hover:text-ink disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                >
+                  {transcribingChroniclerVoice ? <><SpinnerIcon />Prepisujem…</> : "Generovať prepis"}
+                </button>
+                {transcribeChroniclerError && (
+                  <p className="text-xs text-danger">Prepis zlyhal. Skontrolujte konfiguráciu API kľúča na serveri.</p>
+                )}
+              </>
             )}
           </div>
 
