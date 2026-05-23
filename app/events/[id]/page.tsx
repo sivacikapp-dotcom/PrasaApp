@@ -77,26 +77,35 @@ function EventDetailContent() {
   useEffect(() => {
     if (!appUser) return;
     async function load() {
-      const [ev, allCats] = await Promise.all([getEvent(id), getCategories()]);
-      if (!ev) { setLoading(false); return; }
+      try {
+        const [ev, allCats] = await Promise.all([getEvent(id), getCategories()]);
+        if (!ev) { setLoading(false); return; }
 
-      if (ev.categoryId) {
-        const cat = allCats.find((c) => c.id === ev.categoryId);
-        const hasAccess =
-          (cat && cat.allowedUserIds.includes(appUser!.uid)) ||
-          (ev.editorIds ?? []).includes(appUser!.uid);
-        if (!hasAccess) {
-          setDenied(true);
-          setLoading(false);
-          return;
+        if (ev.categoryId) {
+          const cat = allCats.find((c) => c.id === ev.categoryId);
+          const hasAccess =
+            (cat && cat.allowedUserIds.includes(appUser!.uid)) ||
+            (ev.editorIds ?? []).includes(appUser!.uid);
+          if (!hasAccess) {
+            setDenied(true);
+            setLoading(false);
+            return;
+          }
+          setCategory(cat ?? null);
         }
-        setCategory(cat ?? null);
-      }
 
-      setEvent(ev);
-      const fetched = await Promise.all(ev.contributionIds.map((cid) => getContribution(cid)));
-      setContributions(fetched.filter((c): c is Contribution => c !== null));
-      setLoading(false);
+        setEvent(ev);
+        const fetched = await Promise.all(
+          ev.contributionIds.map((cid) =>
+            getContribution(cid).catch(() => null)
+          )
+        );
+        setContributions(fetched.filter((c): c is Contribution => c !== null));
+      } catch {
+        // silently handle unexpected errors
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [id, appUser]);
