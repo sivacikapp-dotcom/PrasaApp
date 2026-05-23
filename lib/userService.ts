@@ -12,6 +12,7 @@ import {
 import type { User } from "firebase/auth";
 import { db } from "./firebase";
 import type { AppUser, UserRole, UserStatus } from "@/types/user";
+import { notifyAdmins } from "./notifyService";
 
 function toAppUser(data: Record<string, unknown>, uid: string): AppUser {
   const ts = (v: unknown) =>
@@ -50,6 +51,7 @@ export async function getOrCreateUser(firebaseUser: User): Promise<AppUser> {
       updatedAt: serverTimestamp(),
     };
     await setDoc(ref, newUser);
+    notifyAdmins(newUser.displayName || newUser.email, newUser.email).catch(() => {});
     return { ...newUser, createdAt: new Date(), updatedAt: new Date() };
   }
 

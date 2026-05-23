@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { Contribution, ContributionStatus, GeoLocation, VoiceNote } from "@/types/contribution";
+import { notifyChroniclers } from "./notifyService";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ export async function createContribution(input: NewContributionInput): Promise<s
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  notifyChroniclers(input.contributorName, input.eventDate).catch(() => {});
   return ref.id;
 }
 
