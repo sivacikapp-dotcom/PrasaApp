@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { getAdminDb } from "@/lib/firebaseAdmin";
 
 type NotifyPayload =
   | { type: "newContribution"; contributorName: string; eventDate: string }
   | { type: "newUser"; userName: string; userEmail: string };
 
 async function getEmailsByRole(role: string): Promise<string[]> {
+  // Used only when RESEND_TEST_EMAIL is not set (own domain mode)
+  const { getAdminDb } = await import("@/lib/firebaseAdmin");
   const db = getAdminDb();
   const snap = await db.collection("users")
     .where("roles", "array-contains", role)
@@ -26,12 +27,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "RESEND_API_KEY nie je nastavený na serveri" }, { status: 500 });
     }
 
-    const from = process.env.RESEND_FROM_EMAIL ?? "PrasaApp <noreply@prasaapp.sk>";
+    // When RESEND_TEST_EMAIL is set, all notifications go there (Resend free tier without domain)
+    const testEmail = process.env.RESEND_TEST_EMAIL;
+    const from = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
     const resend = new Resend(apiKey);
 
     if (payload.type === "newContribution") {
       const { contributorName, eventDate } = payload;
-      const to = await getEmailsByRole("chronicler");
+      const to = testEmail ? [testEmail] : await getEmailsByRole("chronicler");
       if (to.length === 0) return NextResponse.json({ ok: true, skipped: "no chroniclers" });
 
       const { error } = await resend.emails.send({
@@ -49,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     if (payload.type === "newUser") {
       const { userName, userEmail } = payload;
-      const to = await getEmailsByRole("admin");
+      const to = testEmail ? [testEmail] : await getEmailsByRole("admin");
       if (to.length === 0) return NextResponse.json({ ok: true, skipped: "no admins" });
 
       const { error } = await resend.emails.send({
