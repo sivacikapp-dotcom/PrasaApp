@@ -6,6 +6,7 @@ import {
   subscribeToMyContributions,
   subscribeToAccessibleContributions,
 } from "@/lib/contributionService";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Contribution } from "@/types/contribution";
 
 export function useAllContributions() {
@@ -72,9 +73,24 @@ export function useContributionsForDashboard(
   return { contributions, loading };
 }
 
-/** Returns the count of pending (unprocessed) contributions — used for chronicler badge */
+/** Returns the count of pending contributions — only subscribes for chronicler/admin users. */
 export function usePendingCount() {
-  const { contributions, loading } = useAllContributions();
-  const count = contributions.filter((c) => c.status === "pending").length;
+  const { appUser, hasRole } = useAuth();
+  const [count, setCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const isPrivileged = hasRole("chronicler") || hasRole("admin");
+    if (!appUser || !isPrivileged) {
+      setLoading(false);
+      return;
+    }
+    const unsub = subscribeToAllContributions((data) => {
+      setCount(data.filter((c) => c.status === "pending").length);
+      setLoading(false);
+    });
+    return unsub;
+  }, [appUser, hasRole]);
+
   return { count, loading };
 }
