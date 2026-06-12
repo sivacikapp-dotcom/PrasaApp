@@ -7,6 +7,8 @@ import { createContribution, updateContribution } from "@/lib/contributionServic
 import { uploadPhoto, uploadVoice, uploadVideo } from "@/lib/storageService";
 import { getLocationName } from "@/lib/geocoding";
 import { savePending } from "@/lib/offlineDb";
+import { getCategories } from "@/lib/categoryService";
+import type { Group } from "@/types/contribution";
 
 type CaptureStatus = "idle" | "uploading" | "success" | "offline" | "error";
 
@@ -35,6 +37,7 @@ export function QuickCapture() {
   const { state: locState, capture: captureLocation } = useLocation();
 
   const [captureStatus, setCaptureStatus] = useState<CaptureStatus>("idle");
+  const [accessibleGroups, setAccessibleGroups] = useState<Group[]>([]);
 
   // Voice state
   const [voiceReady, setVoiceReady] = useState(false);
@@ -53,9 +56,26 @@ export function QuickCapture() {
     captureLocation();
   }, [captureLocation]);
 
+  useEffect(() => {
+    if (!appUser) return;
+    getCategories().then((cats) => {
+      setAccessibleGroups(cats.filter((c) => c.allowedUserIds.includes(appUser.uid)));
+    });
+  }, [appUser]);
+
   const getLocation = useCallback(() => {
     return locState.status === "ok" ? locState.data : null;
   }, [locState]);
+
+  function getGroupParams() {
+    const categories = accessibleGroups.map((g) => g.id);
+    const visibleToIds = appUser
+      ? [appUser.uid, ...accessibleGroups.flatMap((g) => g.allowedUserIds)].filter(
+          (v, i, a) => a.indexOf(v) === i
+        )
+      : [];
+    return { categories, visibleToIds };
+  }
 
   async function handlePhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -92,6 +112,7 @@ export function QuickCapture() {
           voices: [],
           location: loc,
           locationName,
+          ...getGroupParams(),
         });
         const photoUrl = await uploadPhoto(file, contribId, appUser.uid);
         await updateContribution(contribId, { photoUrls: [photoUrl] });
@@ -155,6 +176,7 @@ export function QuickCapture() {
               voices: [],
               location: loc,
               locationName,
+              ...getGroupParams(),
             });
             const voiceUrl = await uploadVoice(blob, contribId, appUser.uid);
             await updateContribution(contribId, { voices: [{ url: voiceUrl, transcript: null }] });
@@ -216,6 +238,7 @@ export function QuickCapture() {
           voices: [],
           location: loc,
           locationName,
+          ...getGroupParams(),
         });
         const videoUrl = await uploadVideo(file, contribId, appUser.uid);
         await updateContribution(contribId, { videoUrls: [videoUrl] });

@@ -43,7 +43,7 @@ function ChroniclerDetailContent() {
   const [existingChroniclerPhotos, setExistingChroniclerPhotos] = useState<string[]>([]);
   const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
   const [chroniclerVoiceTranscript, setChroniclerVoiceTranscript] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -69,7 +69,7 @@ function ChroniclerDetailContent() {
         setVoiceTranscripts(c.voices.map((v) => v.transcript ?? ""));
         setChroniclerVoiceTranscript(c.chroniclerVoiceTranscript ?? "");
         setExistingChroniclerPhotos(c.chroniclerPhotoUrls);
-        setSelectedCategory(c.categories[0] ?? null);
+        setSelectedCategories(c.categories);
         setSelectedTags(c.hashtags);
       }
       setCategories(cats);
@@ -90,10 +90,11 @@ function ChroniclerDetailContent() {
     let chroniclerVoiceUrl = contribution.chroniclerVoiceUrl;
     if (voiceBlob) chroniclerVoiceUrl = await uploadChroniclerVoice(voiceBlob, id);
 
-    const assignedCat = selectedCategory ? categories.find((c) => c.id === selectedCategory) : null;
     const visibleToIds = [
       contribution.contributorId,
-      ...(assignedCat?.allowedUserIds ?? []),
+      ...selectedCategories.flatMap(
+        (catId) => categories.find((c) => c.id === catId)?.allowedUserIds ?? []
+      ),
     ].filter((v, i, a) => a.indexOf(v) === i);
 
     const updatedVoices = contribution.voices.map((v, i) => ({
@@ -108,7 +109,7 @@ function ChroniclerDetailContent() {
       chroniclerPhotoUrls: allChroniclerPhotos,
       voices: updatedVoices,
       chroniclerVoiceTranscript: chroniclerVoiceTranscript.trim() || null,
-      categories: selectedCategory ? [selectedCategory] : [],
+      categories: selectedCategories,
       hashtags: selectedTags,
       visibleToIds,
       ...(markProcessed ? { status: "processed" } : {}),
@@ -437,19 +438,22 @@ function ChroniclerDetailContent() {
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+                    onClick={() =>
+                      setSelectedCategories((prev) =>
+                        prev.includes(cat.id) ? prev.filter((id) => id !== cat.id) : [...prev, cat.id]
+                      )
+                    }
                     className={`rounded-full px-3 py-1 text-sm font-medium transition-colors border ${
-                      selectedCategory === cat.id
+                      selectedCategories.includes(cat.id)
                         ? "border-transparent text-gold-text"
                         : "bg-transparent text-ink-dim border-rim hover:border-rim-strong"
                     }`}
-                    style={selectedCategory === cat.id ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
+                    style={selectedCategories.includes(cat.id) ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
                   >
                     {cat.name}
                   </button>
                 ))}
               </div>
-              <p className="mt-1 text-[10px] text-ink-subtle">Každý príspevok môže mať iba jednu skupinu.</p>
             </div>
           )}
 
