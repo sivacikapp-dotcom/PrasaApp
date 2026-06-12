@@ -43,7 +43,7 @@ export interface Contribution {
   updatedAt: Date;
 }
 
-export interface Category {
+export interface Group {
   id: string;
   name: string;
   color: string;
@@ -55,6 +55,8 @@ export interface Category {
 export interface Tag {
   id: string;
   name: string;
+  /** Category IDs this tag is restricted to. Empty = available in all groups. */
+  categoryIds: string[];
   createdBy: string;
   createdAt: Date;
 }

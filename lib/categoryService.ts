@@ -14,11 +14,11 @@ import {
 } from "firebase/firestore";
 
 import { db } from "./firebase";
-import type { Category, Tag } from "@/types/contribution";
+import type { Group, Tag } from "@/types/contribution";
 
 // ── Categories ────────────────────────────────────────────────────────────────
 
-function catFromDoc(id: string, d: Record<string, unknown>): Category {
+function catFromDoc(id: string, d: Record<string, unknown>): Group {
   const ts = (v: unknown) => (v instanceof Timestamp ? v.toDate() : new Date());
   return {
     id,
@@ -35,12 +35,13 @@ function tagFromDoc(id: string, d: Record<string, unknown>): Tag {
   return {
     id,
     name: (d.name as string) ?? "",
+    categoryIds: (d.categoryIds as string[]) ?? [],
     createdBy: (d.createdBy as string) ?? "",
     createdAt: ts(d.createdAt),
   };
 }
 
-export async function getCategories(): Promise<Category[]> {
+export async function getCategories(): Promise<Group[]> {
   const snap = await getDocs(query(collection(db, "categories"), orderBy("name")));
   return snap.docs.map((d) => catFromDoc(d.id, d.data() as Record<string, unknown>));
 }
@@ -49,7 +50,7 @@ export async function createCategory(
   name: string,
   color: string,
   createdBy: string
-): Promise<Category> {
+): Promise<Group> {
   const ref = await addDoc(collection(db, "categories"), {
     name,
     color,
@@ -71,7 +72,7 @@ export async function updateCategoryAccess(id: string, allowedUserIds: string[])
   await updateDoc(doc(db, "categories", id), { allowedUserIds });
 }
 
-export function subscribeToCategories(cb: (cats: Category[]) => void): Unsubscribe {
+export function subscribeToCategories(cb: (cats: Group[]) => void): Unsubscribe {
   return onSnapshot(query(collection(db, "categories"), orderBy("name")), (snap) =>
     cb(snap.docs.map((d) => catFromDoc(d.id, d.data() as Record<string, unknown>)))
   );
@@ -91,7 +92,11 @@ export async function createTag(name: string, createdBy: string): Promise<Tag> {
     createdBy,
     createdAt: serverTimestamp(),
   });
-  return { id: ref.id, name: normalised, createdBy, createdAt: new Date() };
+  return { id: ref.id, name: normalised, categoryIds: [], createdBy, createdAt: new Date() };
+}
+
+export async function updateTagCategories(id: string, categoryIds: string[]): Promise<void> {
+  await updateDoc(doc(db, "tags", id), { categoryIds });
 }
 
 export async function deleteTag(id: string): Promise<void> {

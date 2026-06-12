@@ -464,16 +464,22 @@ function ChroniclerDetailContent() {
             <div>
               <label className="block text-sm font-medium text-ink-dim mb-2">Hashtagy</label>
               <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <button key={tag.id} type="button" onClick={() => toggleTag(tag.id)}
-                    className={`rounded-full px-3 py-1 text-sm transition-colors border ${
-                      selectedTags.includes(tag.id)
-                        ? "bg-gold-dim text-gold border-gold/40"
-                        : "bg-transparent text-ink-dim border-rim hover:border-rim-strong"
-                    }`}>
-                    {tag.name}
-                  </button>
-                ))}
+                {tags
+                  .filter((tag) =>
+                    selectedTags.includes(tag.id) ||
+                    tag.categoryIds.length === 0 ||
+                    tag.categoryIds.some((cid) => selectedCategories.includes(cid))
+                  )
+                  .map((tag) => (
+                    <button key={tag.id} type="button" onClick={() => toggleTag(tag.id)}
+                      className={`rounded-full px-3 py-1 text-sm transition-colors border ${
+                        selectedTags.includes(tag.id)
+                          ? "bg-gold-dim text-gold border-gold/40"
+                          : "bg-transparent text-ink-dim border-rim hover:border-rim-strong"
+                      }`}>
+                      {tag.name}
+                    </button>
+                  ))}
               </div>
             </div>
           )}
