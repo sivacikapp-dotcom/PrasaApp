@@ -155,9 +155,14 @@ function AdminContent() {
   async function toggleTagCategory(tag: Tag, catId: string) {
     const key = tag.id + catId;
     setTagAccessUpdating(key);
-    const updated = tag.categoryIds.includes(catId)
-      ? tag.categoryIds.filter((id) => id !== catId)
-      : [...tag.categoryIds, catId];
+    let updated: string[];
+    if (catId === "__all__") {
+      updated = [];
+    } else {
+      updated = tag.categoryIds.includes(catId)
+        ? tag.categoryIds.filter((id) => id !== catId)
+        : [...tag.categoryIds, catId];
+    }
     await updateTagCategories(tag.id, updated);
     setTagAccessUpdating(null);
   }
@@ -525,6 +530,18 @@ function AdminContent() {
                     {categories.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 items-center">
                         <span className="text-xs text-ink-subtle shrink-0">Skupiny:</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleTagCategory(tag, "__all__")}
+                          disabled={tagAccessUpdating === tag.id + "__all__"}
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium border transition-colors disabled:opacity-50 ${
+                            tag.categoryIds.length === 0
+                              ? "border-gold bg-gold-dim text-gold"
+                              : "border-rim text-ink-dim hover:border-rim-strong"
+                          }`}
+                        >
+                          Všetky skupiny
+                        </button>
                         {categories.map((cat) => {
                           const active = tag.categoryIds.includes(cat.id);
                           const key = tag.id + cat.id;
@@ -545,9 +562,6 @@ function AdminContent() {
                             </button>
                           );
                         })}
-                        {tag.categoryIds.length === 0 && (
-                          <span className="text-xs text-ink-subtle italic">Všetky skupiny</span>
-                        )}
                       </div>
                     )}
                   </div>
