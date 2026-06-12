@@ -207,11 +207,7 @@ function ChroniclerDetailContent() {
   async function handleAssignToEvent(event: ChronicleEvent) {
     if (!contribution) return;
     const eventCatId = event.categoryId;
-    const contribCats = contribution.categories;
-    const hasConflict =
-      eventCatId &&
-      contribCats.length > 0 &&
-      !contribCats.includes(eventCatId);
+    const hasConflict = eventCatId !== null && !contribution.categories.includes(eventCatId);
     if (hasConflict) {
       setPendingEventConflict(event);
       return;
@@ -578,7 +574,7 @@ function ChroniclerDetailContent() {
         }
         conflictingCount={1}
         compatibleCount={0}
-        onChangeEvent={handleConflictChangeEvent}
+        onChangeEvent={contribution && contribution.categories.length > 0 ? handleConflictChangeEvent : undefined}
         onOverwriteContrib={handleConflictOverwriteContrib}
         onCancel={() => setPendingEventConflict(null)}
       />

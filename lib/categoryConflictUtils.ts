@@ -80,7 +80,7 @@ export function checkEventGroupConflict(
   const conflicting: string[] = [];
   for (const id of ids) {
     const c = allContribs.find((c) => c.id === id);
-    if (!c || c.categories.length === 0 || c.categories.includes(eventCategoryId)) {
+    if (c && c.categories.includes(eventCategoryId)) {
       compatible.push(id);
     } else {
       conflicting.push(id);
