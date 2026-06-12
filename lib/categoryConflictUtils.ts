@@ -64,3 +64,27 @@ export function checkCategoryConflict(
     conflicting,
   };
 }
+
+/**
+ * Checks which contributions conflict with a target event's categoryId.
+ * A contribution conflicts when it has at least one category assigned
+ * AND none of them match the event's category.
+ */
+export function checkEventGroupConflict(
+  ids: string[],
+  eventCategoryId: string | null,
+  allContribs: Contribution[]
+): { compatible: string[]; conflicting: string[] } {
+  if (!eventCategoryId) return { compatible: ids, conflicting: [] };
+  const compatible: string[] = [];
+  const conflicting: string[] = [];
+  for (const id of ids) {
+    const c = allContribs.find((c) => c.id === id);
+    if (!c || c.categories.length === 0 || c.categories.includes(eventCategoryId)) {
+      compatible.push(id);
+    } else {
+      conflicting.push(id);
+    }
+  }
+  return { compatible, conflicting };
+}

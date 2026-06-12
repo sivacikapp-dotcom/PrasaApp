@@ -16,10 +16,12 @@ import { getContribution, updateContributionByChronicler } from "@/lib/contribut
 import { getCategories, getTags } from "@/lib/categoryService";
 import { uploadChroniclerPhoto, uploadChroniclerVoice } from "@/lib/storageService";
 import { addContributionsToGroup, getEventGroups } from "@/lib/eventGroupService";
-import { addContributionsToEvent, getEvents } from "@/lib/eventService";
+import { addContributionsToEvent, createEvent, getEvents, removeContributionFromEvent } from "@/lib/eventService";
 import { GroupPickerModal } from "@/components/ui/GroupPickerModal";
 import { EventPickerModal } from "@/components/ui/EventPickerModal";
-import type { Contribution, Category, Tag, ChronicleEvent, EventGroup } from "@/types/contribution";
+import { EventGroupConflictModal } from "@/components/ui/EventGroupConflictModal";
+import { useAuth } from "@/contexts/AuthContext";
+import type { Contribution, Group, Tag, ChronicleEvent, EventGroup } from "@/types/contribution";
 
 const INPUT_CLS =
   "w-full rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold";
@@ -27,9 +29,10 @@ const INPUT_CLS =
 function ChroniclerDetailContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { appUser } = useAuth();
 
   const [contribution, setContribution] = useState<Contribution | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Group[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +54,7 @@ function ChroniclerDetailContent() {
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
   const [eventPickerOpen, setEventPickerOpen] = useState(false);
   const [assignedFeedback, setAssignedFeedback] = useState<string | null>(null);
+  const [pendingEventConflict, setPendingEventConflict] = useState<ChronicleEvent | null>(null);
   const [allGroups, setAllGroups] = useState<EventGroup[]>([]);
   const [allEvents, setAllEvents] = useState<ChronicleEvent[]>([]);
 
@@ -186,7 +190,7 @@ function ChroniclerDetailContent() {
     setTimeout(() => setAssignedFeedback(null), 3000);
   }
 
-  async function handleAssignToEvent(event: ChronicleEvent) {
+  async function doAddToEvent(event: ChronicleEvent) {
     await addContributionsToEvent(event.id, [id]);
     setAllEvents((prev) =>
       prev.map((ev) =>
@@ -197,6 +201,81 @@ function ChroniclerDetailContent() {
     );
     setAssignedFeedback(`Zaradený do udalosti „${event.title}"`);
     setTimeout(() => setAssignedFeedback(null), 3000);
+  }
+
+  async function handleAssignToEvent(event: ChronicleEvent) {
+    if (!contribution) return;
+    const eventCatId = event.categoryId;
+    const contribCats = contribution.categories;
+    const hasConflict =
+      eventCatId &&
+      contribCats.length > 0 &&
+      !contribCats.includes(eventCatId);
+    if (hasConflict) {
+      setPendingEventConflict(event);
+      return;
+    }
+    await doAddToEvent(event);
+  }
+
+  async function handleConflictAlign() {
+    if (!pendingEventConflict || !contribution) return;
+    const eventCatId = pendingEventConflict.categoryId!;
+    const newCategories = [...new Set([...contribution.categories, eventCatId])];
+    const newCat = categories.find((c) => c.id === eventCatId);
+    const newVisibleToIds = [
+      contribution.contributorId,
+      ...(newCat?.allowedUserIds ?? []),
+    ].filter((v, i, a) => a.indexOf(v) === i);
+    await updateContributionByChronicler(id, { categories: newCategories, visibleToIds: newVisibleToIds });
+    setContribution((prev) => prev ? { ...prev, categories: newCategories } : prev);
+    await doAddToEvent(pendingEventConflict);
+    setPendingEventConflict(null);
+  }
+
+  function handleConflictProceed() {
+    if (!pendingEventConflict) return;
+    doAddToEvent(pendingEventConflict);
+    setPendingEventConflict(null);
+  }
+
+  async function handleRemoveFromEvent(eventId: string) {
+    await removeContributionFromEvent(eventId, id);
+    setAllEvents((prev) =>
+      prev.map((ev) =>
+        ev.id === eventId
+          ? { ...ev, contributionIds: ev.contributionIds.filter((cid) => cid !== id) }
+          : ev
+      )
+    );
+  }
+
+  async function handleCreateAndAssignEvent(title: string, categoryId: string | null) {
+    if (!appUser) return;
+    const eventId = await createEvent({ title, contributionIds: [id], categoryId, createdBy: appUser.uid });
+    setAllEvents((prev) => [
+      ...prev,
+      {
+        id: eventId,
+        title,
+        categoryId,
+        contributionIds: [id],
+        locationName: null,
+        dateFrom: null,
+        dateTo: null,
+        description: null,
+        entityOrder: [],
+        hiddenItems: [],
+        categories: [],
+        hashtags: [],
+        editorIds: [],
+        createdBy: appUser.uid,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as ChronicleEvent,
+    ]);
+    setAssignedFeedback(`Udalosť „${title}" bola vytvorená a príspevok zaradený`);
+    setTimeout(() => setAssignedFeedback(null), 4000);
   }
 
   if (loading) return <><NavBar /><PageSpinner /></>;
@@ -352,7 +431,7 @@ function ChroniclerDetailContent() {
 
           {categories.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-ink-dim mb-2">Kategória</label>
+              <label className="block text-sm font-medium text-ink-dim mb-2">Skupina</label>
               <div className="flex flex-wrap gap-2">
                 {categories.map((cat) => (
                   <button
@@ -370,7 +449,7 @@ function ChroniclerDetailContent() {
                   </button>
                 ))}
               </div>
-              <p className="mt-1 text-[10px] text-ink-subtle">Každý príspevok môže mať iba jednu kategóriu.</p>
+              <p className="mt-1 text-[10px] text-ink-subtle">Každý príspevok môže mať iba jednu skupinu.</p>
             </div>
           )}
 
@@ -410,13 +489,22 @@ function ChroniclerDetailContent() {
                 </Link>
               ))}
               {linkedEvents.map((event) => (
-                <Link
-                  key={event.id}
-                  href={`/chronicler/events/${event.id}`}
-                  className="flex items-center gap-1.5 rounded-lg bg-gold-dim border border-gold/30 px-2.5 py-1.5 text-xs text-gold hover:border-gold"
-                >
-                  <CalendarIcon /> {event.title}
-                </Link>
+                <div key={event.id} className="flex items-center rounded-lg bg-gold-dim border border-gold/30 overflow-hidden">
+                  <Link
+                    href={`/chronicler/events/${event.id}`}
+                    className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 text-xs text-gold hover:bg-gold/10"
+                  >
+                    <CalendarIcon /> {event.title}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFromEvent(event.id)}
+                    className="px-2 py-1.5 text-gold/40 hover:text-danger hover:bg-danger-dim border-l border-gold/20 transition-colors"
+                    title="Odstrániť z udalosti"
+                  >
+                    <XSmallIcon />
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -463,6 +551,21 @@ function ChroniclerDetailContent() {
         open={eventPickerOpen}
         onConfirm={handleAssignToEvent}
         onClose={() => setEventPickerOpen(false)}
+        categories={categories}
+        onCreateAndAssign={handleCreateAndAssignEvent}
+      />
+      <EventGroupConflictModal
+        open={pendingEventConflict !== null}
+        mode="single"
+        eventGroupName={
+          categories.find((c) => c.id === pendingEventConflict?.categoryId)?.name ??
+          (pendingEventConflict?.categoryId ?? "")
+        }
+        conflictingCount={1}
+        compatibleCount={0}
+        onAlign={handleConflictAlign}
+        onProceedAnyway={handleConflictProceed}
+        onCancel={() => setPendingEventConflict(null)}
       />
     </>
   );
@@ -476,6 +579,14 @@ function SpinnerIcon() {
   return (
     <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    </svg>
+  );
+}
+
+function XSmallIcon() {
+  return (
+    <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+      <line x1="2" y1="2" x2="10" y2="10" /><line x1="10" y1="2" x2="2" y2="10" />
     </svg>
   );
 }

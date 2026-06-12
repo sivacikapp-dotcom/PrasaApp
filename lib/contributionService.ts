@@ -79,6 +79,8 @@ export interface NewContributionInput {
   voices: VoiceNote[];
   location: GeoLocation | null;
   locationName?: string | null;
+  categories?: string[];
+  visibleToIds?: string[];
 }
 
 export async function createContribution(input: NewContributionInput): Promise<string> {
@@ -92,11 +94,11 @@ export async function createContribution(input: NewContributionInput): Promise<s
     chroniclerVoiceUrl: null,
     chroniclerPhotoUrls: [],
     chroniclerVoiceTranscript: null,
-    categories: [],
+    categories: input.categories ?? [],
     hashtags: [],
     eventGroupIds: [],
     status: "pending",
-    visibleToIds: [input.contributorId],
+    visibleToIds: input.visibleToIds ?? [input.contributorId],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

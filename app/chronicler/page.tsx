@@ -19,7 +19,8 @@ import { EventPickerModal } from "@/components/ui/EventPickerModal";
 import { GroupPickerModal } from "@/components/ui/GroupPickerModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { GroupConflictModal } from "@/components/ui/GroupConflictModal";
-import { checkCategoryConflict, getEffectiveCategoryId } from "@/lib/categoryConflictUtils";
+import { EventGroupConflictModal } from "@/components/ui/EventGroupConflictModal";
+import { checkCategoryConflict, getEffectiveCategoryId, checkEventGroupConflict } from "@/lib/categoryConflictUtils";
 import { updateContributionByChronicler } from "@/lib/contributionService";
 import type { Group, Tag, EventGroup, ChronicleEvent } from "@/types/contribution";
 
@@ -136,6 +137,11 @@ function ChroniclerContent() {
   // Add-to-group / add-to-event modals
   const [addToGroupOpen, setAddToGroupOpen] = useState(false);
   const [addToEventOpen, setAddToEventOpen] = useState(false);
+  const [pendingEventConflict, setPendingEventConflict] = useState<{
+    event: ChronicleEvent;
+    compatible: string[];
+    conflicting: string[];
+  } | null>(null);
 
   // ── Udalosti tab state ────────────────────────────────────────────────────
   const [eventSearch, setEventSearch] = useState("");
@@ -377,8 +383,42 @@ function ChroniclerContent() {
 
   // ── Add to existing event ────────────────────────────────────────────────
   async function handleAddToEvent(ev: ChronicleEvent) {
-    await addContributionsToEvent(ev.id, Array.from(selectedIds));
+    const ids = Array.from(selectedIds);
+    const { compatible, conflicting } = checkEventGroupConflict(ids, ev.categoryId, contributions);
+    if (conflicting.length > 0) {
+      setAddToEventOpen(false);
+      setPendingEventConflict({ event: ev, compatible, conflicting });
+      return;
+    }
+    await addContributionsToEvent(ev.id, ids);
     setAddToEventOpen(false);
+    exitSelectMode();
+  }
+
+  async function handleEventConflictAlign() {
+    if (!pendingEventConflict) return;
+    const { event, compatible, conflicting } = pendingEventConflict;
+    const eventCatId = event.categoryId!;
+    await Promise.all(
+      conflicting.map(async (cid) => {
+        const c = contributions.find((x) => x.id === cid);
+        if (!c) return;
+        const newCategories = [...new Set([...c.categories, eventCatId])];
+        await updateContributionByChronicler(cid, { categories: newCategories });
+      })
+    );
+    await addContributionsToEvent(event.id, [...compatible, ...conflicting]);
+    setPendingEventConflict(null);
+    exitSelectMode();
+  }
+
+  async function handleEventConflictCompatibleOnly() {
+    if (!pendingEventConflict) return;
+    const { event, compatible } = pendingEventConflict;
+    if (compatible.length > 0) {
+      await addContributionsToEvent(event.id, compatible);
+    }
+    setPendingEventConflict(null);
     exitSelectMode();
   }
 
@@ -1034,6 +1074,21 @@ function ChroniclerContent() {
         open={addToEventOpen}
         onConfirm={handleAddToEvent}
         onClose={() => setAddToEventOpen(false)}
+      />
+
+      {/* Event-group conflict modal */}
+      <EventGroupConflictModal
+        open={pendingEventConflict !== null}
+        mode="batch"
+        eventGroupName={
+          categories.find((c) => c.id === pendingEventConflict?.event.categoryId)?.name ??
+          (pendingEventConflict?.event.categoryId ?? "")
+        }
+        conflictingCount={pendingEventConflict?.conflicting.length ?? 0}
+        compatibleCount={pendingEventConflict?.compatible.length ?? 0}
+        onAlign={handleEventConflictAlign}
+        onAddCompatibleOnly={handleEventConflictCompatibleOnly}
+        onCancel={() => setPendingEventConflict(null)}
       />
 
       {/* Group conflict modal (merge) */}

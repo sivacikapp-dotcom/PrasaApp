@@ -15,6 +15,8 @@ import { createContribution, updateContribution } from "@/lib/contributionServic
 import { uploadPhoto, uploadVideo, uploadVoice } from "@/lib/storageService";
 import { getLocationName } from "@/lib/geocoding";
 import { savePending } from "@/lib/offlineDb";
+import { getCategories } from "@/lib/categoryService";
+import type { Group } from "@/types/contribution";
 
 const INPUT_CLS =
   "w-full rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold";
@@ -33,7 +35,20 @@ function NewContributionForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [accessibleGroups, setAccessibleGroups] = useState<Group[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set());
+  const [noGroupConfirmed, setNoGroupConfirmed] = useState(false);
+
   useEffect(() => { captureLocation(); }, [captureLocation]);
+
+  useEffect(() => {
+    if (!appUser) return;
+    getCategories().then((cats) => {
+      const mine = cats.filter((c) => c.allowedUserIds.includes(appUser.uid));
+      setAccessibleGroups(mine);
+      setSelectedCategoryIds(new Set(mine.map((c) => c.id)));
+    });
+  }, [appUser]);
 
   const countFields = useCallback(() => {
     let count = 0;
@@ -70,11 +85,24 @@ function NewContributionForm() {
     });
   }
 
+  function toggleGroup(groupId: string) {
+    setNoGroupConfirmed(false);
+    setSelectedCategoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!appUser) return;
     if (countFields() < 2) {
       setError("Príspevok musí obsahovať aspoň 2 z týchto údajov: text, GPS poloha, fotografia, hlasová správa. Doplňte aspoň jeden ďalší údaj.");
+      return;
+    }
+    if (accessibleGroups.length > 0 && selectedCategoryIds.size === 0 && !noGroupConfirmed) {
+      setError("Potvrďte, že príspevok nebude zaradený do žiadnej skupiny.");
       return;
     }
     setSaving(true);
@@ -105,6 +133,13 @@ function NewContributionForm() {
       }
 
       const locationName = loc ? await getLocationName(loc.latitude, loc.longitude) : null;
+      const selectedGroupIds = Array.from(selectedCategoryIds);
+      const selectedGroupObjects = accessibleGroups.filter((g) => selectedGroupIds.includes(g.id));
+      const visibleToIds = [
+        appUser.uid,
+        ...selectedGroupObjects.flatMap((g) => g.allowedUserIds),
+      ].filter((v, i, a) => a.indexOf(v) === i);
+
       const contribId = await createContribution({
         contributorId: appUser.uid,
         contributorName: appUser.displayName,
@@ -115,6 +150,8 @@ function NewContributionForm() {
         voices: [],
         location: loc,
         locationName,
+        categories: selectedGroupIds,
+        visibleToIds,
       });
 
       const photoUrls: string[] = [];
@@ -229,6 +266,51 @@ function NewContributionForm() {
               onRecorded={handleVoiceRecorded}
             />
           </div>
+
+          {accessibleGroups.length > 0 && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-ink-dim">Skupiny</label>
+              <div className="flex flex-wrap gap-2">
+                {accessibleGroups.map((g) => {
+                  const selected = selectedCategoryIds.has(g.id);
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => toggleGroup(g.id)}
+                      className={`rounded-full px-3 py-1 text-sm font-medium border transition-colors ${
+                        selected
+                          ? "border-transparent text-gold-text"
+                          : "border-rim text-ink-dim hover:border-rim-strong"
+                      }`}
+                      style={selected ? { backgroundColor: g.color, borderColor: g.color } : {}}
+                    >
+                      {g.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedCategoryIds.size === 0 && (
+                <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 space-y-2">
+                  <p className="text-xs font-medium text-warning">
+                    Príspevok nebude zaradený do žiadnej skupiny.
+                  </p>
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={noGroupConfirmed}
+                      onChange={(e) => setNoGroupConfirmed(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-gold"
+                    />
+                    <span className="text-xs text-ink-dim">
+                      Beriem na vedomie, že príspevok nebude zaradený do žiadnej skupiny
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center gap-2 text-sm">
             {locState.status === "ok" && (
