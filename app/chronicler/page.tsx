@@ -14,17 +14,21 @@ import { EventCard } from "@/components/contributions/EventCard";
 import { useAllContributions } from "@/hooks/useContributions";
 import { getCategories, getTags } from "@/lib/categoryService";
 import { subscribeToEventGroups, createEventGroup, addContributionsToGroup } from "@/lib/eventGroupService";
-import { subscribeToEvents, createEvent } from "@/lib/eventService";
+import { subscribeToEvents, createEvent, addContributionsToEvent } from "@/lib/eventService";
+import { EventPickerModal } from "@/components/ui/EventPickerModal";
+import { GroupPickerModal } from "@/components/ui/GroupPickerModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { CategoryConflictModal } from "@/components/ui/CategoryConflictModal";
+import { GroupConflictModal } from "@/components/ui/GroupConflictModal";
 import { checkCategoryConflict, getEffectiveCategoryId } from "@/lib/categoryConflictUtils";
 import { updateContributionByChronicler } from "@/lib/contributionService";
-import type { Category, Tag, EventGroup, ChronicleEvent } from "@/types/contribution";
+import type { Group, Tag, EventGroup, ChronicleEvent } from "@/types/contribution";
 
+type PageTab = "prispevky" | "udalosti";
 type ContribFilter = "all" | "pending" | "processed";
 type EventAssignmentFilter = "all" | "in-events" | "not-in-events";
 type OrgTab = "groups" | "events";
 type SortKey = "date-desc" | "date-asc" | "contributor-asc" | "contributor-desc";
+type EventSortKey = "date-desc" | "date-asc" | "title-asc" | "title-desc";
 
 const FILTER_STORAGE_KEY = "chronicler-filter-v1";
 
@@ -32,9 +36,13 @@ function ChroniclerContent() {
   const { appUser } = useAuth();
   const router = useRouter();
   const { contributions, loading } = useAllContributions();
+
+  // ── Page tab ──────────────────────────────────────────────────────────────
+  const [pageTab, setPageTab] = useState<PageTab>("prispevky");
+
   const [contribFilter, setContribFilter] = useState<ContribFilter>("pending");
   const [orgTab, setOrgTab] = useState<OrgTab>("groups");
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Group[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [search, setSearch] = useState("");
   const [groups, setGroups] = useState<EventGroup[]>([]);
@@ -124,6 +132,15 @@ function ChroniclerContent() {
   const [eventSourceIds, setEventSourceIds] = useState<string[]>([]);
   const [creatingEvent, setCreatingEvent] = useState(false);
   const eventTitleRef = useRef<HTMLInputElement>(null);
+
+  // Add-to-group / add-to-event modals
+  const [addToGroupOpen, setAddToGroupOpen] = useState(false);
+  const [addToEventOpen, setAddToEventOpen] = useState(false);
+
+  // ── Udalosti tab state ────────────────────────────────────────────────────
+  const [eventSearch, setEventSearch] = useState("");
+  const [eventSort, setEventSort] = useState<EventSortKey>("date-desc");
+  const [eventFilterCatIds, setEventFilterCatIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getCategories().then(setCategories);
@@ -251,6 +268,25 @@ function ChroniclerContent() {
     return list;
   }, [contributions, contribFilter, search, filterDateFrom, filterDateTo, filterContributors, filterGroups, filterEvents, filterEventAssignment, filterEventCategories, sortKey, contribEventMap, events]);
 
+  const filteredEvents = useMemo(() => {
+    let list = [...events];
+    if (eventSearch.trim()) {
+      const q = eventSearch.toLowerCase();
+      list = list.filter((ev) => ev.title.toLowerCase().includes(q));
+    }
+    if (eventFilterCatIds.size > 0) {
+      list = list.filter((ev) => ev.categoryId && eventFilterCatIds.has(ev.categoryId));
+    }
+    list.sort((a, b) => {
+      if (eventSort === "title-asc") return a.title.localeCompare(b.title, "sk");
+      if (eventSort === "title-desc") return b.title.localeCompare(a.title, "sk");
+      const ta = (a.dateFrom ?? a.createdAt).getTime();
+      const tb = (b.dateFrom ?? b.createdAt).getTime();
+      return eventSort === "date-asc" ? ta - tb : tb - ta;
+    });
+    return list;
+  }, [events, eventSearch, eventSort, eventFilterCatIds]);
+
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -332,6 +368,20 @@ function ChroniclerContent() {
     router.push(`/chronicler/events/${eventId}`);
   }
 
+  // ── Add to existing group ────────────────────────────────────────────────
+  async function handleAddToGroup(group: EventGroup) {
+    await addContributionsToGroup(group.id, Array.from(selectedIds));
+    setAddToGroupOpen(false);
+    exitSelectMode();
+  }
+
+  // ── Add to existing event ────────────────────────────────────────────────
+  async function handleAddToEvent(ev: ChronicleEvent) {
+    await addContributionsToEvent(ev.id, Array.from(selectedIds));
+    setAddToEventOpen(false);
+    exitSelectMode();
+  }
+
   // ── Contribution filter tabs ──────────────────────────────────────────────
   const CONTRIB_TABS: { key: ContribFilter; label: string }[] = [
     { key: "pending", label: "Čakajúce" },
@@ -346,9 +396,48 @@ function ChroniclerContent() {
     { key: "contributor-desc", label: "Prispievateľ Z–A" },
   ];
 
+  const EVENT_SORT_OPTIONS: { key: EventSortKey; label: string }[] = [
+    { key: "date-desc", label: "Dátum ↓" },
+    { key: "date-asc", label: "Dátum ↑" },
+    { key: "title-asc", label: "Názov A–Z" },
+    { key: "title-desc", label: "Názov Z–A" },
+  ];
+
   return (
     <>
       <NavBar />
+
+      {/* ── Main page tabs ──────────────────────────────────────────────── */}
+      <div className="sticky top-[57px] z-30 bg-canvas/95 backdrop-blur-sm border-b border-rim">
+        <div className="mx-auto max-w-2xl px-4 flex gap-0.5 py-2">
+          {([
+            { key: "prispevky" as PageTab, label: "Príspevky", badge: pendingCount > 0 ? pendingCount : undefined },
+            { key: "udalosti" as PageTab, label: "Udalosti", badge: events.length > 0 ? events.length : undefined },
+          ]).map(({ key, label, badge }) => (
+            <button
+              key={key}
+              onClick={() => setPageTab(key)}
+              className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+                pageTab === key
+                  ? "bg-gold text-gold-text"
+                  : "text-ink-dim hover:bg-surface hover:text-ink"
+              }`}
+            >
+              {label}
+              {badge !== undefined && (
+                <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                  pageTab === key ? "bg-black/20 text-gold-text" : "bg-surface-high text-ink-subtle"
+                }`}>
+                  {badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Príspevky tab ───────────────────────────────────────────────── */}
+      {pageTab === "prispevky" && (
       <main className="mx-auto max-w-2xl px-4 py-6 pb-28 space-y-8">
 
         {/* ── CONTRIBUTIONS SECTION ─────────────────────────────────────── */}
@@ -379,12 +468,6 @@ function ChroniclerContent() {
                   Zrušiť výber
                 </button>
               )}
-              <Link
-                href="/chronicler/categories"
-                className="rounded-lg border border-rim px-3 py-1.5 text-xs font-medium text-ink-dim hover:bg-surface hover:text-ink"
-              >
-                Kategórie
-              </Link>
             </div>
           </div>
 
@@ -568,7 +651,7 @@ function ChroniclerContent() {
               {/* Event category multiselect */}
               {categories.length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Kategória udalosti</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Skupina udalosti</p>
                   <div className="flex flex-wrap gap-1.5">
                     {categories.map((cat) => {
                       const active = filterEventCategories.has(cat.id);
@@ -724,6 +807,79 @@ function ChroniclerContent() {
           )}
         </section>
       </main>
+      )} {/* end Príspevky tab */}
+
+      {/* ── Udalosti tab ────────────────────────────────────────────────── */}
+      {pageTab === "udalosti" && (
+        <main className="mx-auto max-w-2xl px-4 py-6 pb-16 space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-subtle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Hľadať udalosti…"
+              value={eventSearch}
+              onChange={(e) => setEventSearch(e.target.value)}
+              className="w-full rounded-xl border border-rim bg-surface pl-9 pr-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+            />
+          </div>
+
+          {/* Sort */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-ink-subtle shrink-0">Zoradiť:</span>
+            {EVENT_SORT_OPTIONS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setEventSort(key)}
+                className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                  eventSort === key ? "border-gold bg-gold-dim text-gold" : "border-rim text-ink-dim hover:text-ink"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Filter by skupiny */}
+          {categories.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-xs text-ink-subtle shrink-0">Skupina:</span>
+              {categories.map((cat) => {
+                const active = eventFilterCatIds.has(cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setEventFilterCatIds((prev) => toggleSet(prev, cat.id))}
+                    className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                      active ? "border-transparent text-gold-text" : "border-rim text-ink-dim hover:text-ink"
+                    }`}
+                    style={active ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
+                  >
+                    {cat.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Event list */}
+          {loading ? (
+            <PageSpinner />
+          ) : filteredEvents.length === 0 ? (
+            <div className="py-12 text-center text-sm text-ink-subtle">
+              {events.length === 0 ? "Žiadne udalosti. Vytvorte ich z príspevkov." : "Žiadne udalosti nezodpovedajú filtrom."}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredEvents.map((ev) => (
+                <EventCard key={ev.id} event={ev} contributions={contributions} categories={categories} />
+              ))}
+            </div>
+          )}
+        </main>
+      )}
 
       {/* Selection action bar */}
       {selectMode && selectedIds.size > 0 && (
@@ -734,12 +890,18 @@ function ChroniclerContent() {
               {selectedIds.size === 1 ? "príspevok" : selectedIds.size < 5 ? "príspevky" : "príspevkov"}{" "}
               vybraných
             </p>
-            <div className="flex gap-2">
-              <Button size="sm" variant="secondary" className="flex-1" onClick={openMergeModal} disabled={selectedIds.size < 2}>
-                <GroupIcon /> Zlúčiť do skupiny
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" variant="secondary" onClick={openMergeModal} disabled={selectedIds.size < 2}>
+                <GroupIcon /> Zlúčiť skupinu
               </Button>
-              <Button size="sm" className="flex-1" onClick={() => openCreateEventModal(Array.from(selectedIds))}>
+              <Button size="sm" variant="secondary" onClick={() => setAddToGroupOpen(true)}>
+                <FolderPlusIcon /> Pridať do skupiny
+              </Button>
+              <Button size="sm" onClick={() => openCreateEventModal(Array.from(selectedIds))}>
                 <CalendarIcon /> Vytvoriť udalosť
+              </Button>
+              <Button size="sm" onClick={() => setAddToEventOpen(true)}>
+                <CalendarCheckIcon /> Vlož do udalosti
               </Button>
             </div>
           </div>
@@ -834,9 +996,9 @@ function ChroniclerContent() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-ink-dim">Kategória <span className="text-danger">*</span></label>
+            <label className="text-xs font-medium text-ink-dim">Skupina <span className="text-danger">*</span></label>
             {categories.length === 0 ? (
-              <p className="text-xs text-ink-subtle">Najprv vytvorte kategórie v sekcii Kategórie.</p>
+              <p className="text-xs text-ink-subtle">Najprv vytvorte skupiny v sekcii Skupiny.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {categories.map((cat) => (
@@ -860,9 +1022,23 @@ function ChroniclerContent() {
         </div>
       </Modal>
 
-      {/* Category conflict modal (merge) */}
+      {/* Add to existing group modal */}
+      <GroupPickerModal
+        open={addToGroupOpen}
+        onConfirm={handleAddToGroup}
+        onClose={() => setAddToGroupOpen(false)}
+      />
+
+      {/* Add to existing event modal */}
+      <EventPickerModal
+        open={addToEventOpen}
+        onConfirm={handleAddToEvent}
+        onClose={() => setAddToEventOpen(false)}
+      />
+
+      {/* Group conflict modal (merge) */}
       {pendingMergeConflict && (
-        <CategoryConflictModal
+        <GroupConflictModal
           open={mergeConflictOpen}
           dominantCategoryName={
             categories.find((c) => c.id === pendingMergeConflict.dominantCategoryId)?.name ??
@@ -947,6 +1123,28 @@ function CheckSmallIcon() {
   return (
     <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
       <path d="M1.5 6l3 3 6-6" />
+    </svg>
+  );
+}
+
+function FolderPlusIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+      <line x1="12" y1="11" x2="12" y2="17" />
+      <line x1="9" y1="14" x2="15" y2="14" />
+    </svg>
+  );
+}
+
+function CalendarCheckIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <path d="M9 16l2 2 4-4" />
     </svg>
   );
 }
