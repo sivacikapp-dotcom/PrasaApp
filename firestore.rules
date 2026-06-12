@@ -43,11 +43,14 @@ service cloud.firestore {
     // ── contributions ─────────────────────────────────────────────────
     match /contributions/{docId} {
       // Admin/chronicler see everything.
-      // Contributor sees: own posts (any status) + processed posts in categories
-      // they have access to. Access is denormalised into visibleToIds on each doc.
+      // Contributor sees their own posts (contributorId match validates
+      // where("contributorId","==",uid) queries) + posts shared via visibleToIds.
       allow read: if isAdmin()
                   || isChronicler()
-                  || (isContributor() && request.auth.uid in resource.data.visibleToIds);
+                  || (isContributor() && (
+                       request.auth.uid in resource.data.visibleToIds
+                       || resource.data.contributorId == request.auth.uid
+                     ));
       allow create: if isContributor() || isChronicler();
       allow update: if isChronicler()
                     || isAdmin()
