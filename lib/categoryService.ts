@@ -24,6 +24,7 @@ function catFromDoc(id: string, d: Record<string, unknown>): Group {
     id,
     name: (d.name as string) ?? "",
     color: (d.color as string) ?? "#6366f1",
+    icon: (d.icon as string | undefined) ?? undefined,
     allowedUserIds: (d.allowedUserIds as string[]) ?? [],
     createdBy: (d.createdBy as string) ?? "",
     createdAt: ts(d.createdAt),
@@ -49,19 +50,21 @@ export async function getCategories(): Promise<Group[]> {
 export async function createCategory(
   name: string,
   color: string,
+  icon: string,
   createdBy: string
 ): Promise<Group> {
   const ref = await addDoc(collection(db, "categories"), {
     name,
     color,
+    ...(icon ? { icon } : {}),
     createdBy,
     createdAt: serverTimestamp(),
   });
-  return { id: ref.id, name, color, allowedUserIds: [], createdBy, createdAt: new Date() };
+  return { id: ref.id, name, color, icon: icon || undefined, allowedUserIds: [], createdBy, createdAt: new Date() };
 }
 
-export async function updateCategory(id: string, name: string, color: string): Promise<void> {
-  await updateDoc(doc(db, "categories", id), { name, color });
+export async function updateCategory(id: string, name: string, color: string, icon: string): Promise<void> {
+  await updateDoc(doc(db, "categories", id), { name, color, icon: icon || null });
 }
 
 export async function deleteCategory(id: string): Promise<void> {

@@ -9,13 +9,13 @@ import { RouteGuard } from "@/components/RouteGuard";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCategories } from "@/lib/categoryService";
-import { getEventsForUser } from "@/lib/eventService";
-import type { ChronicleEvent, Category } from "@/types/contribution";
+import { getEvents, getEventsForUser } from "@/lib/eventService";
+import type { ChronicleEvent, Group } from "@/types/contribution";
 
 function EventsContent() {
   const { appUser } = useAuth();
   const [events, setEvents] = useState<ChronicleEvent[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,7 +24,10 @@ function EventsContent() {
       const allCats = await getCategories();
       const allowed = allCats.filter((c) => c.allowedUserIds.includes(appUser!.uid));
       setCategories(allCats);
-      const evts = await getEventsForUser(allowed.map((c) => c.id), appUser!.uid);
+      const isPrivileged = appUser!.roles.includes("chronicler") || appUser!.roles.includes("admin");
+      const evts = isPrivileged
+        ? await getEvents()
+        : await getEventsForUser(allowed.map((c) => c.id), appUser!.uid);
       setEvents(evts);
       setLoading(false);
     }
@@ -45,7 +48,7 @@ function EventsContent() {
               <CalendarIcon className="h-7 w-7 text-ink-subtle" />
             </div>
             <p className="text-sm text-ink-dim">Žiadne dostupné udalosti.</p>
-            <p className="text-xs text-ink-subtle">Kronikár vám musí najprv sprístupniť kategóriu.</p>
+            <p className="text-xs text-ink-subtle">Kronikár vám musí najprv sprístupniť skupinu.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -65,7 +68,7 @@ function EventsContent() {
                         className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium text-gold-text"
                         style={{ backgroundColor: cat.color }}
                       >
-                        {cat.name}
+                        {cat.icon ? cat.icon + " " + cat.name : cat.name}
                       </span>
                     )}
                   </div>

@@ -7,7 +7,7 @@ import { sk } from "date-fns/locale";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { ContributionPickerModal } from "@/components/ui/ContributionPickerModal";
-import { CategoryConflictModal } from "@/components/ui/CategoryConflictModal";
+import { GroupConflictModal } from "@/components/ui/GroupConflictModal";
 import {
   renameEventGroup,
   removeContributionFromGroup,
@@ -16,13 +16,13 @@ import {
 } from "@/lib/eventGroupService";
 import { updateContributionByChronicler } from "@/lib/contributionService";
 import { checkCategoryConflict, getEffectiveCategoryId } from "@/lib/categoryConflictUtils";
-import type { EventGroup, Contribution, ChronicleEvent, Category } from "@/types/contribution";
+import type { EventGroup, Contribution, ChronicleEvent, Group } from "@/types/contribution";
 
 interface EventGroupCardProps {
   group: EventGroup;
   contributions: Contribution[];
   events?: ChronicleEvent[];
-  categories?: Category[];
+  categories?: Group[];
   onCreateEvent: (contributionIds: string[]) => void;
 }
 
@@ -249,7 +249,7 @@ export function EventGroupCard({ group, contributions, events = [], categories =
       />
 
       {pendingConflict && (
-        <CategoryConflictModal
+        <GroupConflictModal
           open={conflictOpen}
           dominantCategoryName={
             categories.find((c) => c.id === pendingConflict.dominantCategoryId)?.name ??

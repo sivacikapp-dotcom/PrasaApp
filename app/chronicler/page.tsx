@@ -692,7 +692,7 @@ function ChroniclerContent() {
                           style={active ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
                         >
                           {active && <CheckSmallIcon />}
-                          {cat.name}
+                          {cat.icon ? cat.icon + " " + cat.name : cat.name}
                         </button>
                       );
                     })}
@@ -882,7 +882,7 @@ function ChroniclerContent() {
                     }`}
                     style={active ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
                   >
-                    {cat.name}
+                    {cat.icon ? cat.icon + " " + cat.name : cat.name}
                   </button>
                 );
               })}
@@ -1038,7 +1038,7 @@ function ChroniclerContent() {
                     }`}
                     style={eventCategoryId === cat.id ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
                   >
-                    {cat.name}
+                    {cat.icon ? cat.icon + " " + cat.name : cat.name}
                   </button>
                 ))}
               </div>

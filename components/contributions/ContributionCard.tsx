@@ -2,12 +2,12 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import { Badge } from "@/components/ui/Badge";
-import type { Contribution, Category, Tag } from "@/types/contribution";
+import type { Contribution, Group, Tag } from "@/types/contribution";
 
 interface ContributionCardProps {
   contribution: Contribution;
   href: string;
-  categories?: Category[];
+  categories?: Group[];
   tags?: Tag[];
   selectable?: boolean;
   selected?: boolean;

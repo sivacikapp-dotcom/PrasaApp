@@ -453,7 +453,7 @@ function ChroniclerDetailContent() {
                     }`}
                     style={selectedCategories.includes(cat.id) ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
                   >
-                    {cat.name}
+                    {cat.icon ? cat.icon + " " + cat.name : cat.name}
                   </button>
                 ))}
               </div>

@@ -27,9 +27,9 @@ import { getAllUsers } from "@/lib/userService";
 import { ContributionPickerModal } from "@/components/ui/ContributionPickerModal";
 import { GroupPickerModal } from "@/components/ui/GroupPickerModal";
 import { UserPickerModal } from "@/components/ui/UserPickerModal";
-import { CategoryConflictModal } from "@/components/ui/CategoryConflictModal";
+import { GroupConflictModal } from "@/components/ui/GroupConflictModal";
 import { checkCategoryConflict, getEffectiveCategoryId } from "@/lib/categoryConflictUtils";
-import type { ChronicleEvent, Contribution, EventGroup, Category } from "@/types/contribution";
+import type { ChronicleEvent, Contribution, EventGroup, Group } from "@/types/contribution";
 import type { AppUser } from "@/types/user";
 
 const INPUT_CLS =
@@ -118,9 +118,10 @@ function EventDetailContent() {
   const [deleting, setDeleting] = useState(false);
   const [addContribOpen, setAddContribOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
-  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [allCategories, setAllCategories] = useState<Group[]>([]);
   const [editors, setEditors] = useState<AppUser[]>([]);
   const [userPickerOpen, setUserPickerOpen] = useState(false);
+  const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [pendingConflict, setPendingConflict] = useState<{
     dominantCategoryId: string;
@@ -312,7 +313,7 @@ function EventDetailContent() {
                 {effectiveCategory.name}
               </span>
             ) : (
-              <span className="text-xs text-ink-subtle">Bez kategórie</span>
+              <span className="text-xs text-ink-subtle">Bez skupiny</span>
             )}
           </div>
 
@@ -344,7 +345,7 @@ function EventDetailContent() {
 
           {allCategories.length > 0 && (
             <div>
-              <label className="block text-xs font-medium text-ink-dim mb-2">Kategória <span className="text-danger">*</span></label>
+              <label className="block text-xs font-medium text-ink-dim mb-2">Skupina <span className="text-danger">*</span></label>
               <div className="flex flex-wrap gap-2">
                 {allCategories.map((cat) => (
                   <button
@@ -356,11 +357,11 @@ function EventDetailContent() {
                     }`}
                     style={categoryId === cat.id ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
                   >
-                    {cat.name}
+                    {cat.icon ? cat.icon + " " + cat.name : cat.name}
                   </button>
                 ))}
               </div>
-              {!categoryId && <p className="mt-1 text-[10px] text-danger">Kategória je povinná.</p>}
+              {!categoryId && <p className="mt-1 text-[10px] text-danger">Skupina je povinná.</p>}
             </div>
           )}
         </section>
@@ -420,6 +421,13 @@ function EventDetailContent() {
                         >
                           <ExternalIcon />
                         </Link>
+                        <button
+                          onClick={() => setRemoveConfirmId(c.id)}
+                          className="rounded p-1 text-ink-subtle hover:text-danger transition-colors"
+                          title="Odstrániť príspevok z udalosti"
+                        >
+                          <RemoveFromEventIcon />
+                        </button>
                         {isVoiceEntity && hasAudio && (
                           <button
                             onClick={() => toggleHiddenSub(key, "audio")}
@@ -620,8 +628,21 @@ function EventDetailContent() {
         onClose={() => setUserPickerOpen(false)}
       />
 
+      <ConfirmModal
+        open={!!removeConfirmId}
+        title="Odstrániť príspevok z udalosti"
+        message="Príspevok bude vyradený z tejto udalosti. Príspevok samotný zostane zachovaný."
+        confirmLabel="Odstrániť"
+        danger
+        onConfirm={async () => {
+          if (removeConfirmId) await handleRemoveMember(removeConfirmId);
+          setRemoveConfirmId(null);
+        }}
+        onClose={() => setRemoveConfirmId(null)}
+      />
+
       {pendingConflict && (
-        <CategoryConflictModal
+        <GroupConflictModal
           open={conflictOpen}
           dominantCategoryName={allCategories.find((c) => c.id === pendingConflict.dominantCategoryId)?.name ?? pendingConflict.dominantCategoryId}
           compatibleCount={pendingConflict.compatible.length}
@@ -661,6 +682,9 @@ function BackIcon() {
 }
 function TrashIcon() {
   return <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" /></svg>;
+}
+function RemoveFromEventIcon() {
+  return <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>;
 }
 function ExternalIcon() {
   return <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>;

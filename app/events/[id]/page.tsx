@@ -12,7 +12,7 @@ import Link from "next/link";
 import { getEvent } from "@/lib/eventService";
 import { getContribution } from "@/lib/contributionService";
 import { getCategories } from "@/lib/categoryService";
-import type { ChronicleEvent, Contribution, Category } from "@/types/contribution";
+import type { ChronicleEvent, Contribution, Group } from "@/types/contribution";
 
 // ── Entity model (mirrors chronicler editor) ──────────────────────────────────
 
@@ -70,7 +70,7 @@ function EventDetailContent() {
 
   const [event, setEvent] = useState<ChronicleEvent | null>(null);
   const [contributions, setContributions] = useState<Contribution[]>([]);
-  const [category, setCategory] = useState<Category | null>(null);
+  const [category, setCategory] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
 
@@ -83,7 +83,9 @@ function EventDetailContent() {
 
         if (ev.categoryId) {
           const cat = allCats.find((c) => c.id === ev.categoryId);
+          const isPrivileged = appUser!.roles.includes("chronicler") || appUser!.roles.includes("admin");
           const hasAccess =
+            isPrivileged ||
             (cat && cat.allowedUserIds.includes(appUser!.uid)) ||
             (ev.editorIds ?? []).includes(appUser!.uid);
           if (!hasAccess) {
@@ -155,7 +157,7 @@ function EventDetailContent() {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
               {category && (
                 <span className="rounded-full px-2 py-0.5 text-[10px] font-medium text-gold-text" style={{ backgroundColor: category.color }}>
-                  {category.name}
+                  {category.icon ? category.icon + " " + category.name : category.name}
                 </span>
               )}
               {event.locationName && (

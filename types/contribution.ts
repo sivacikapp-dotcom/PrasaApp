@@ -47,6 +47,7 @@ export interface Group {
   id: string;
   name: string;
   color: string;
+  icon?: string;
   allowedUserIds: string[];
   createdBy: string;
   createdAt: Date;

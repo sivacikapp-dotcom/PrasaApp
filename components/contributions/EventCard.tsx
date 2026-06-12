@@ -6,12 +6,12 @@ import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { deleteEvent } from "@/lib/eventService";
-import type { ChronicleEvent, Contribution, Category } from "@/types/contribution";
+import type { ChronicleEvent, Contribution, Group } from "@/types/contribution";
 
 interface EventCardProps {
   event: ChronicleEvent;
   contributions: Contribution[];
-  categories?: Category[];
+  categories?: Group[];
 }
 
 export function EventCard({ event, contributions, categories = [] }: EventCardProps) {

@@ -56,7 +56,11 @@ export function useContributionsForDashboard(
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isContributorOnly && uid) {
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
+    if (isContributorOnly) {
       const unsub = subscribeToAccessibleContributions(uid, (data) => {
         setContributions(data);
         setLoading(false);

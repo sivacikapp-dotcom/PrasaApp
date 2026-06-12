@@ -25,7 +25,7 @@ export function NavBar() {
       show: isChronicler,
       badge: pendingCount > 0 ? pendingCount : undefined,
     },
-    { href: "/admin", label: "Správa", show: isAdmin },
+    { href: "/admin", label: "Správa", show: isAdmin || isChronicler },
   ];
 
   return (

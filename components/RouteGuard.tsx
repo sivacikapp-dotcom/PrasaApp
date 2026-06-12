@@ -8,12 +8,18 @@ import type { UserRole } from "@/types/user";
 
 interface RouteGuardProps {
   children: React.ReactNode;
-  requiredRole?: UserRole;
+  requiredRole?: UserRole | UserRole[];
 }
 
 export function RouteGuard({ children, requiredRole }: RouteGuardProps) {
   const { firebaseUser, appUser, loading, hasRole } = useAuth();
   const router = useRouter();
+
+  function hasAccess() {
+    if (!requiredRole) return true;
+    const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+    return roles.some((r) => hasRole(r));
+  }
 
   useEffect(() => {
     if (loading) return;
@@ -25,15 +31,16 @@ export function RouteGuard({ children, requiredRole }: RouteGuardProps) {
       router.replace("/pending");
       return;
     }
-    if (requiredRole && !hasRole(requiredRole)) {
+    if (!hasAccess()) {
       router.replace("/dashboard");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser, appUser, loading, requiredRole, hasRole, router]);
 
   if (loading) return <PageSpinner />;
   if (!firebaseUser) return null;
   if (appUser && appUser.status !== "active") return null;
-  if (requiredRole && !hasRole(requiredRole)) return null;
+  if (!hasAccess()) return null;
 
   return <>{children}</>;
 }

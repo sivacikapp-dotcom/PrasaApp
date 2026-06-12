@@ -26,8 +26,49 @@ import type { AppUser, UserRole, UserStatus } from "@/types/user";
 import type { Group, Tag } from "@/types/contribution";
 
 const PRESET_COLORS = [
-  "#D4A843", "#C07830", "#A83030", "#5A8F4A",
-  "#4A7A9A", "#7A5EA0", "#C05880", "#6B9E5E",
+  // Reds / pinks
+  "#EF4444", "#DC2626", "#EC4899", "#DB2777",
+  // Oranges / yellows / gold
+  "#F97316", "#EA580C", "#F59E0B", "#D4A843",
+  // Greens
+  "#22C55E", "#16A34A", "#5A8F4A", "#059669",
+  // Teals / blues
+  "#0D9488", "#0891B2", "#2563EB", "#4A7A9A",
+  // Purples / mauves
+  "#7C3AED", "#7A5EA0", "#8B5CF6", "#A855F7",
+  // Mixed / muted
+  "#C07830", "#A83030", "#6B9E5E", "#78716C",
+];
+
+const EMOJI_CATEGORIES: { label: string; emojis: string[] }[] = [
+  {
+    label: "Ľudia",
+    emojis: ["👶","🧒","👦","👧","🧑","👱","🧔","👴","👵","👨‍👩‍👧‍👦","👨‍👩‍👦","👨‍👩‍👧","👪","👫","👬","👭","🤝","🙌","🫂","💪"],
+  },
+  {
+    label: "Aktivity",
+    emojis: ["⚽","🏀","🏈","⚾","🎾","🏐","🎱","🏓","🏸","🥊","🏋️","🤸","🏊","🚴","🎿","🛷","⛷️","🏂","🎯","🎮","🎲","♟️","🎳","🧩"],
+  },
+  {
+    label: "Príroda",
+    emojis: ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐝","🦋","🌸","🌺","🌻","🌹","🍀","🌿","🍃","🌴"],
+  },
+  {
+    label: "Jedlo",
+    emojis: ["🍕","🍔","🍟","🌮","🌯","🥗","🍣","🍜","🎂","🍰","🧁","🍩","🍪","🍦","🍫","🍷","🍺","☕","🍵","🧃","🥂","🫙","🍱","🥘"],
+  },
+  {
+    label: "Cestovanie",
+    emojis: ["✈️","🚂","🚢","🚗","🏠","🏡","🏖️","🏔️","⛺","🗺️","🌍","🗼","🏰","⛩️","🎡","🎢","🚀","⛵","🚁","🏕️","🌅","🌄","🗻","🏛️"],
+  },
+  {
+    label: "Kultúra",
+    emojis: ["🎨","🖼️","🎭","🎬","🎤","🎵","🎶","🎸","🎹","🥁","📚","📖","📝","✏️","🔬","🔭","🎓","🏛️","⛪","🕌","🎻","🎺","🎷","🎙️"],
+  },
+  {
+    label: "Symboly",
+    emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","⭐","🌟","💫","✨","🔥","💎","🏆","🥇","🎉","🎊","🎈","🌈","☀️","🌙","⚡","❄️"],
+  },
 ];
 
 const INPUT_CLS =
@@ -75,11 +116,13 @@ function AdminContent() {
   // ── Categories tab ───────────────────────────────────────────────────────────
   const [catName, setCatName] = useState("");
   const [catColor, setCatColor] = useState(PRESET_COLORS[0]);
+  const [catIcon, setCatIcon] = useState("");
   const [catSaving, setCatSaving] = useState(false);
   const [expandedCatId, setExpandedCatId] = useState<string | null>(null);
   const [editingCat, setEditingCat] = useState<Group | null>(null);
   const [editCatName, setEditCatName] = useState("");
   const [editCatColor, setEditCatColor] = useState(PRESET_COLORS[0]);
+  const [editCatIcon, setEditCatIcon] = useState("");
   const [editCatSaving, setEditCatSaving] = useState(false);
 
   // ── Tags tab ─────────────────────────────────────────────────────────────────
@@ -133,8 +176,9 @@ function AdminContent() {
     e.preventDefault();
     if (!catName.trim() || !appUser) return;
     setCatSaving(true);
-    await createCategory(catName.trim(), catColor, appUser.uid);
+    await createCategory(catName.trim(), catColor, catIcon, appUser.uid);
     setCatName("");
+    setCatIcon("");
     setCatSaving(false);
   }
 
@@ -142,12 +186,13 @@ function AdminContent() {
     setEditingCat(cat);
     setEditCatName(cat.name);
     setEditCatColor(cat.color);
+    setEditCatIcon(cat.icon ?? "");
   }
 
   async function handleSaveCat() {
     if (!editingCat || !editCatName.trim()) return;
     setEditCatSaving(true);
-    await updateCategory(editingCat.id, editCatName.trim(), editCatColor);
+    await updateCategory(editingCat.id, editCatName.trim(), editCatColor, editCatIcon);
     setEditCatSaving(false);
     setEditingCat(null);
   }
@@ -376,29 +421,48 @@ function AdminContent() {
         {/* ── Skupiny tab ──────────────────────────────────────────────────────── */}
         {tab === "skupiny" && (
           <div className="space-y-4">
-            <form onSubmit={handleAddCategory} className="flex gap-2 flex-wrap items-center">
-              <input
-                value={catName}
-                onChange={(e) => setCatName(e.target.value)}
-                placeholder="Názov skupiny"
-                className={`flex-1 min-w-36 ${INPUT_CLS}`}
-              />
-              <div className="flex gap-1.5">
-                {PRESET_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setCatColor(c)}
-                    className={`h-7 w-7 rounded-full transition-transform ${
-                      catColor === c ? "scale-125 ring-2 ring-offset-2 ring-offset-canvas ring-ink/40" : ""
-                    }`}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
+            <form onSubmit={handleAddCategory} className="rounded-xl border border-rim bg-surface p-3 space-y-3">
+              <div className="flex gap-2 items-center">
+                <input
+                  value={catName}
+                  onChange={(e) => setCatName(e.target.value)}
+                  placeholder="Názov skupiny"
+                  className={`flex-1 min-w-36 ${INPUT_CLS}`}
+                />
+                <Button type="submit" size="sm" loading={catSaving} disabled={!catName.trim()}>
+                  Pridať
+                </Button>
               </div>
-              <Button type="submit" size="sm" loading={catSaving} disabled={!catName.trim()}>
-                Pridať
-              </Button>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-ink-dim">Farba</label>
+                <div className="grid grid-cols-12 gap-1.5">
+                  {PRESET_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCatColor(c)}
+                      className={`h-6 w-6 rounded-full transition-transform ${
+                        catColor === c ? "scale-125 ring-2 ring-offset-1 ring-offset-surface ring-ink/40" : ""
+                      }`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-ink-dim">Ikona (voliteľné)</label>
+                <EmojiPicker selected={catIcon} onSelect={setCatIcon} />
+              </div>
+              {catName && (
+                <div className="flex items-center gap-2 pt-0.5">
+                  {catIcon ? (
+                    <span className="text-base leading-none">{catIcon}</span>
+                  ) : (
+                    <span className="h-3.5 w-3.5 rounded-full shrink-0" style={{ backgroundColor: catColor }} />
+                  )}
+                  <span className="text-sm font-medium" style={{ color: catColor }}>{catName}</span>
+                </div>
+              )}
             </form>
 
             <div className="space-y-2">
@@ -411,8 +475,12 @@ function AdminContent() {
                 return (
                   <div key={cat.id} className="rounded-xl border border-rim bg-surface overflow-hidden">
                     <div className="flex items-center gap-3 px-3 py-2.5">
-                      <span className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: cat.color }} />
-                      <span className="flex-1 min-w-0 text-sm font-medium text-ink truncate">{cat.name}</span>
+                      {cat.icon ? (
+                        <span className="shrink-0 text-base leading-none">{cat.icon}</span>
+                      ) : (
+                        <span className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: cat.color }} />
+                      )}
+                      <span className="flex-1 min-w-0 text-sm font-medium text-ink truncate" style={{ color: cat.color }}>{cat.name}</span>
                       <span className="shrink-0 rounded-full bg-surface-high px-2 py-0.5 text-xs text-ink-subtle">
                         {accessCount === 0 ? "Nikto" : accessCount === 1 ? "1 používateľ" : `${accessCount} používatelia`}
                       </span>
@@ -558,7 +626,7 @@ function AdminContent() {
                               }`}
                               style={active ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
                             >
-                              {cat.name}
+                              {cat.icon ? cat.icon + " " + cat.name : cat.name}
                             </button>
                           );
                         })}
@@ -670,25 +738,33 @@ function AdminContent() {
           </div>
           <div className="space-y-2">
             <label className="text-xs font-medium text-ink-dim">Farba</label>
-            <div className="flex gap-2 flex-wrap">
+            <div className="grid grid-cols-12 gap-1.5">
               {PRESET_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setEditCatColor(c)}
-                  className={`h-8 w-8 rounded-full transition-transform ${
-                    editCatColor === c ? "scale-125 ring-2 ring-offset-2 ring-offset-canvas ring-ink/40" : ""
+                  className={`h-6 w-6 rounded-full transition-transform ${
+                    editCatColor === c ? "scale-125 ring-2 ring-offset-1 ring-offset-canvas ring-ink/40" : ""
                   }`}
                   style={{ backgroundColor: c }}
                 />
               ))}
             </div>
-            <div className="flex items-center gap-2 pt-1">
-              <span className="h-4 w-4 rounded-full shrink-0" style={{ backgroundColor: editCatColor }} />
-              <span className="text-sm font-medium" style={{ color: editCatColor }}>
-                {editCatName || "Náhľad"}
-              </span>
-            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-ink-dim">Ikona (voliteľné)</label>
+            <EmojiPicker selected={editCatIcon} onSelect={setEditCatIcon} />
+          </div>
+          <div className="flex items-center gap-2 rounded-xl bg-canvas border border-rim px-3 py-2.5">
+            {editCatIcon ? (
+              <span className="text-xl leading-none">{editCatIcon}</span>
+            ) : (
+              <span className="h-5 w-5 rounded-full shrink-0" style={{ backgroundColor: editCatColor }} />
+            )}
+            <span className="text-sm font-semibold" style={{ color: editCatColor }}>
+              {editCatName || "Náhľad"}
+            </span>
           </div>
         </div>
       </Modal>
@@ -711,6 +787,52 @@ export default function AdminPage() {
     <RouteGuard requiredRole={["admin", "chronicler"]}>
       <AdminContent />
     </RouteGuard>
+  );
+}
+
+function EmojiPicker({ selected, onSelect }: { selected: string; onSelect: (v: string) => void }) {
+  const [activeCat, setActiveCat] = useState(0);
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1 overflow-x-auto pb-0.5">
+        {EMOJI_CATEGORIES.map((cat, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setActiveCat(i)}
+            className={`shrink-0 rounded-lg px-2 py-0.5 text-xs font-medium transition-colors ${
+              activeCat === i ? "bg-gold text-gold-text" : "text-ink-dim hover:bg-surface-high"
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-8 gap-1 max-h-32 overflow-y-auto rounded-lg bg-canvas border border-rim p-1.5">
+        <button
+          type="button"
+          onClick={() => onSelect("")}
+          title="Bez ikony"
+          className={`flex items-center justify-center h-8 w-8 rounded-lg text-xs text-ink-subtle transition-colors ${
+            !selected ? "bg-gold-dim ring-1 ring-gold" : "hover:bg-surface-high"
+          }`}
+        >
+          ✕
+        </button>
+        {EMOJI_CATEGORIES[activeCat].emojis.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => onSelect(emoji)}
+            className={`flex items-center justify-center h-8 w-8 rounded-lg text-lg leading-none transition-colors ${
+              selected === emoji ? "bg-gold-dim ring-1 ring-gold" : "hover:bg-surface-high"
+            }`}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

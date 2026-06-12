@@ -285,7 +285,7 @@ function NewContributionForm() {
                       }`}
                       style={selected ? { backgroundColor: g.color, borderColor: g.color } : {}}
                     >
-                      {g.name}
+                      {g.icon ? g.icon + " " + g.name : g.name}
                     </button>
                   );
                 })}
