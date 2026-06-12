@@ -16,7 +16,7 @@ import { getContribution, updateContributionByChronicler } from "@/lib/contribut
 import { getCategories, getTags } from "@/lib/categoryService";
 import { uploadChroniclerPhoto, uploadChroniclerVoice } from "@/lib/storageService";
 import { addContributionsToGroup, getEventGroups } from "@/lib/eventGroupService";
-import { addContributionsToEvent, createEvent, getEvents, removeContributionFromEvent } from "@/lib/eventService";
+import { addContributionsToEvent, createEvent, getEvents, removeContributionFromEvent, updateEvent } from "@/lib/eventService";
 import { GroupPickerModal } from "@/components/ui/GroupPickerModal";
 import { EventPickerModal } from "@/components/ui/EventPickerModal";
 import { EventGroupConflictModal } from "@/components/ui/EventGroupConflictModal";
@@ -219,24 +219,31 @@ function ChroniclerDetailContent() {
     await doAddToEvent(event);
   }
 
-  async function handleConflictAlign() {
+  async function handleConflictOverwriteContrib() {
     if (!pendingEventConflict || !contribution) return;
     const eventCatId = pendingEventConflict.categoryId!;
-    const newCategories = [...new Set([...contribution.categories, eventCatId])];
     const newCat = categories.find((c) => c.id === eventCatId);
     const newVisibleToIds = [
       contribution.contributorId,
       ...(newCat?.allowedUserIds ?? []),
     ].filter((v, i, a) => a.indexOf(v) === i);
-    await updateContributionByChronicler(id, { categories: newCategories, visibleToIds: newVisibleToIds });
-    setContribution((prev) => prev ? { ...prev, categories: newCategories } : prev);
+    await updateContributionByChronicler(id, { categories: [eventCatId], visibleToIds: newVisibleToIds });
+    setContribution((prev) => prev ? { ...prev, categories: [eventCatId] } : prev);
+    setSelectedCategories([eventCatId]);
     await doAddToEvent(pendingEventConflict);
     setPendingEventConflict(null);
   }
 
-  function handleConflictProceed() {
-    if (!pendingEventConflict) return;
-    doAddToEvent(pendingEventConflict);
+  async function handleConflictChangeEvent() {
+    if (!pendingEventConflict || !contribution) return;
+    const newCatId = contribution.categories[0];
+    await updateEvent(pendingEventConflict.id, { categoryId: newCatId });
+    setAllEvents((prev) =>
+      prev.map((ev) =>
+        ev.id === pendingEventConflict.id ? { ...ev, categoryId: newCatId } : ev
+      )
+    );
+    await doAddToEvent(pendingEventConflict);
     setPendingEventConflict(null);
   }
 
@@ -565,10 +572,14 @@ function ChroniclerDetailContent() {
           categories.find((c) => c.id === pendingEventConflict?.categoryId)?.name ??
           (pendingEventConflict?.categoryId ?? "")
         }
+        contribGroupName={
+          categories.find((c) => c.id === contribution?.categories[0])?.name ??
+          (contribution?.categories[0] ?? "")
+        }
         conflictingCount={1}
         compatibleCount={0}
-        onAlign={handleConflictAlign}
-        onProceedAnyway={handleConflictProceed}
+        onChangeEvent={handleConflictChangeEvent}
+        onOverwriteContrib={handleConflictOverwriteContrib}
         onCancel={() => setPendingEventConflict(null)}
       />
     </>

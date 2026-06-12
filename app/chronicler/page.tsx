@@ -395,16 +395,19 @@ function ChroniclerContent() {
     exitSelectMode();
   }
 
-  async function handleEventConflictAlign() {
+  async function handleEventConflictOverwriteContribs() {
     if (!pendingEventConflict) return;
     const { event, compatible, conflicting } = pendingEventConflict;
     const eventCatId = event.categoryId!;
+    const eventCat = categories.find((c) => c.id === eventCatId);
     await Promise.all(
       conflicting.map(async (cid) => {
         const c = contributions.find((x) => x.id === cid);
         if (!c) return;
-        const newCategories = [...new Set([...c.categories, eventCatId])];
-        await updateContributionByChronicler(cid, { categories: newCategories });
+        const newVisibleToIds = [c.contributorId, ...(eventCat?.allowedUserIds ?? [])].filter(
+          (v, i, a) => a.indexOf(v) === i
+        );
+        await updateContributionByChronicler(cid, { categories: [eventCatId], visibleToIds: newVisibleToIds });
       })
     );
     await addContributionsToEvent(event.id, [...compatible, ...conflicting]);
@@ -1086,7 +1089,7 @@ function ChroniclerContent() {
         }
         conflictingCount={pendingEventConflict?.conflicting.length ?? 0}
         compatibleCount={pendingEventConflict?.compatible.length ?? 0}
-        onAlign={handleEventConflictAlign}
+        onOverwriteContrib={handleEventConflictOverwriteContribs}
         onAddCompatibleOnly={handleEventConflictCompatibleOnly}
         onCancel={() => setPendingEventConflict(null)}
       />

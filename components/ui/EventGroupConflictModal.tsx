@@ -4,16 +4,19 @@ import { useState } from "react";
 
 interface EventGroupConflictModalProps {
   open: boolean;
+  /** Event's current group name */
   eventGroupName: string;
+  /** Contribution's group name — required for single mode "change event" option */
+  contribGroupName?: string;
   /** "single": one contribution conflicts; "batch": multiple contributions */
   mode: "single" | "batch";
   conflictingCount: number;
   compatibleCount: number;
-  /** A: align conflicting contributions' groups to event group, then add all */
-  onAlign: () => Promise<void>;
-  /** B (single): add contribution to event without changing its group */
-  onProceedAnyway?: () => void;
-  /** B (batch): add only compatible contributions */
+  /** Single mode: change event's categoryId to match the contribution's group */
+  onChangeEvent?: () => Promise<void>;
+  /** Single & batch: overwrite contribution(s)' groups with event's group and add to event */
+  onOverwriteContrib: () => Promise<void>;
+  /** Batch only: add only compatible contributions, skip conflicting */
   onAddCompatibleOnly?: () => void;
   onCancel: () => void;
 }
@@ -21,19 +24,20 @@ interface EventGroupConflictModalProps {
 export function EventGroupConflictModal({
   open,
   eventGroupName,
+  contribGroupName,
   mode,
   conflictingCount,
   compatibleCount,
-  onAlign,
-  onProceedAnyway,
+  onChangeEvent,
+  onOverwriteContrib,
   onAddCompatibleOnly,
   onCancel,
 }: EventGroupConflictModalProps) {
   const [busy, setBusy] = useState(false);
 
-  async function handleAlign() {
+  async function run(fn: () => Promise<void>) {
     setBusy(true);
-    await onAlign();
+    await fn();
     setBusy(false);
   }
 
@@ -51,22 +55,24 @@ export function EventGroupConflictModal({
             <WarningIcon />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-ink">Konflikt skupiny</h2>
+            <h2 className="text-sm font-semibold text-ink">Nesúlad skupín</h2>
             <p className="mt-1 text-xs text-ink-dim leading-relaxed">
               {isSingle ? (
                 <>
-                  Príspevok je zaradený do inej skupiny ako táto udalosť{" "}
-                  <strong className="text-ink">({eventGroupName})</strong>.
+                  Príspevok je v skupine{" "}
+                  <strong className="text-ink">„{contribGroupName}"</strong>, no udalosť má skupinu{" "}
+                  <strong className="text-ink">„{eventGroupName}"</strong>.
+                  {" "}Vyberte, ako chcete nesúlad vyriešiť.
                 </>
               ) : (
                 <>
                   {conflictingCount}{" "}
                   {conflictingCount === 1 ? "príspevok má" : conflictingCount < 5 ? "príspevky majú" : "príspevkov má"}{" "}
-                  inú skupinu ako táto udalosť{" "}
-                  <strong className="text-ink">({eventGroupName})</strong>.
+                  inú skupinu ako udalosť{" "}
+                  <strong className="text-ink">(„{eventGroupName}")</strong>.
                   {compatibleCount > 0 && (
                     <> {compatibleCount}{" "}
-                    {compatibleCount === 1 ? "príspevok je kompatibilný" : "príspevkov je kompatibilných"}.</>
+                    {compatibleCount === 1 ? "príspevok je kompatibilný" : compatibleCount < 5 ? "príspevky sú kompatibilné" : "príspevkov je kompatibilných"}.</>
                   )}
                 </>
               )}
@@ -76,35 +82,45 @@ export function EventGroupConflictModal({
 
         {/* Options */}
         <div className="space-y-2">
-          <button
-            onClick={handleAlign}
-            disabled={busy}
-            className="w-full rounded-xl border border-gold bg-gold-dim px-4 py-3 text-left hover:bg-gold/20 disabled:opacity-50"
-          >
-            <p className="text-sm font-semibold text-gold">
-              {isSingle ? "Zaradiť príspevok do skupiny" : "Zaradiť všetky do skupiny"}{" "}
-              <span className="font-normal">„{eventGroupName}"</span>
-            </p>
-            <p className="mt-0.5 text-xs text-ink-dim">
-              {isSingle
-                ? "Skupina príspevku sa zmení a príspevok sa pridá do udalosti."
-                : `Skupina ${conflictingCount === 1 ? "príspevku" : `${conflictingCount} príspevkov`} sa zmení na „${eventGroupName}" a všetky sa pridajú do udalosti.`}
-            </p>
-          </button>
 
-          {isSingle && onProceedAnyway && (
+          {/* Single mode: change event's group */}
+          {isSingle && onChangeEvent && (
             <button
-              onClick={onProceedAnyway}
+              onClick={() => run(onChangeEvent)}
               disabled={busy}
-              className="w-full rounded-xl border border-rim px-4 py-3 text-left hover:bg-surface-high disabled:opacity-40"
+              className="w-full rounded-xl border border-rim bg-surface-high px-4 py-3 text-left hover:bg-surface-high/80 disabled:opacity-50"
             >
-              <p className="text-sm font-semibold text-ink">Pokračovať bez zmeny skupín</p>
+              <p className="text-sm font-semibold text-ink">
+                Zmeniť skupinu udalosti na{" "}
+                <span className="text-gold">„{contribGroupName}"</span>
+              </p>
               <p className="mt-0.5 text-xs text-ink-dim">
-                Príspevok sa pridá do udalosti, jeho skupina ostane nezmenená.
+                Skupina udalosti sa zmení, príspevok sa pridá bez úpravy vlastných skupín.
               </p>
             </button>
           )}
 
+          {/* Single & batch: overwrite contribution(s)' groups with event's group */}
+          <button
+            onClick={() => run(onOverwriteContrib)}
+            disabled={busy}
+            className="w-full rounded-xl border border-gold bg-gold-dim px-4 py-3 text-left hover:bg-gold/20 disabled:opacity-50"
+          >
+            <p className="text-sm font-semibold text-gold">
+              {isSingle
+                ? <>Prepísať skupiny príspevku na <span className="font-normal">„{eventGroupName}"</span></>
+                : <>Prepísať skupiny {conflictingCount === 1 ? "príspevku" : `${conflictingCount} príspevkov`} na <span className="font-normal">„{eventGroupName}"</span></>
+              }
+            </p>
+            <p className="mt-0.5 text-xs text-ink-dim">
+              {isSingle
+                ? `Skupiny príspevku sa nastavia na „${eventGroupName}" a príspevok sa pridá do udalosti.`
+                : `Skupiny ${conflictingCount === 1 ? "príspevku" : `${conflictingCount} príspevkov`} sa nastavia na „${eventGroupName}" a všetky sa pridajú do udalosti.`
+              }
+            </p>
+          </button>
+
+          {/* Batch only: add compatible only */}
           {!isSingle && onAddCompatibleOnly && (
             <button
               onClick={onAddCompatibleOnly}
