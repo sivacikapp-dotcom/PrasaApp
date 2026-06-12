@@ -26,7 +26,6 @@ import type { Group, Tag, EventGroup, ChronicleEvent } from "@/types/contributio
 
 type PageTab = "prispevky" | "udalosti";
 type ContribFilter = "all" | "pending" | "processed";
-type EventAssignmentFilter = "all" | "in-events" | "not-in-events";
 type OrgTab = "groups" | "events";
 type SortKey = "date-desc" | "date-asc" | "contributor-asc" | "contributor-desc";
 type EventSortKey = "date-desc" | "date-asc" | "title-asc" | "title-desc";
@@ -56,7 +55,7 @@ function ChroniclerContent() {
   const [filterContributors, setFilterContributors] = useState<Set<string>>(new Set());
   const [filterGroups, setFilterGroups] = useState<Set<string>>(new Set());
   const [filterEvents, setFilterEvents] = useState<Set<string>>(new Set());
-  const [filterEventAssignment, setFilterEventAssignment] = useState<EventAssignmentFilter>("all");
+  const [filterNotInEvents, setFilterNotInEvents] = useState(false);
   const [filterEventCategories, setFilterEventCategories] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>("date-desc");
 
@@ -76,7 +75,7 @@ function ChroniclerContent() {
         if (Array.isArray(s.filterContributors)) setFilterContributors(new Set(s.filterContributors as string[]));
         if (Array.isArray(s.filterGroups)) setFilterGroups(new Set(s.filterGroups as string[]));
         if (Array.isArray(s.filterEvents)) setFilterEvents(new Set(s.filterEvents as string[]));
-        if (s.filterEventAssignment) setFilterEventAssignment(s.filterEventAssignment as EventAssignmentFilter);
+        if (typeof s.filterNotInEvents === "boolean") setFilterNotInEvents(s.filterNotInEvents);
         if (Array.isArray(s.filterEventCategories)) setFilterEventCategories(new Set(s.filterEventCategories as string[]));
         if (s.sortKey) setSortKey(s.sortKey as SortKey);
         if (typeof s.search === "string") setSearch(s.search);
@@ -97,13 +96,13 @@ function ChroniclerContent() {
         filterContributors: [...filterContributors],
         filterGroups: [...filterGroups],
         filterEvents: [...filterEvents],
-        filterEventAssignment,
+        filterNotInEvents,
         filterEventCategories: [...filterEventCategories],
         sortKey,
         search,
       }));
     } catch { /* ignore */ }
-  }, [filterLoaded, contribFilter, orgTab, filterDateFrom, filterDateTo, filterContributors, filterGroups, filterEvents, filterEventAssignment, filterEventCategories, sortKey, search]);
+  }, [filterLoaded, contribFilter, orgTab, filterDateFrom, filterDateTo, filterContributors, filterGroups, filterEvents, filterNotInEvents, filterEventCategories, sortKey, search]);
 
   // Selection mode
   const [selectMode, setSelectMode] = useState(false);
@@ -183,11 +182,10 @@ function ChroniclerContent() {
     if (filterDateFrom || filterDateTo) n++;
     if (filterContributors.size > 0) n++;
     if (filterGroups.size > 0) n++;
-    if (filterEvents.size > 0) n++;
-    if (filterEventAssignment !== "all") n++;
+    if (filterEvents.size > 0 || filterNotInEvents) n++;
     if (filterEventCategories.size > 0) n++;
     return n;
-  }, [filterDateFrom, filterDateTo, filterContributors, filterGroups, filterEvents, filterEventAssignment, filterEventCategories]);
+  }, [filterDateFrom, filterDateTo, filterContributors, filterGroups, filterEvents, filterNotInEvents, filterEventCategories]);
 
   function clearFilters() {
     setFilterDateFrom("");
@@ -195,7 +193,7 @@ function ChroniclerContent() {
     setFilterContributors(new Set());
     setFilterGroups(new Set());
     setFilterEvents(new Set());
-    setFilterEventAssignment("all");
+    setFilterNotInEvents(false);
     setFilterEventCategories(new Set());
   }
 
@@ -239,14 +237,10 @@ function ChroniclerContent() {
       list = list.filter((c) => c.eventGroupIds.some((gid) => filterGroups.has(gid)));
     }
 
-    if (filterEvents.size > 0) {
-      list = list.filter((c) => (contribEventMap.get(c.id) ?? []).some((eid) => filterEvents.has(eid)));
-    }
-
-    if (filterEventAssignment === "in-events") {
-      list = list.filter((c) => (contribEventMap.get(c.id) ?? []).length > 0);
-    } else if (filterEventAssignment === "not-in-events") {
+    if (filterNotInEvents) {
       list = list.filter((c) => (contribEventMap.get(c.id) ?? []).length === 0);
+    } else if (filterEvents.size > 0) {
+      list = list.filter((c) => (contribEventMap.get(c.id) ?? []).some((eid) => filterEvents.has(eid)));
     }
 
     if (filterEventCategories.size > 0) {
@@ -272,7 +266,7 @@ function ChroniclerContent() {
     });
 
     return list;
-  }, [contributions, contribFilter, search, filterDateFrom, filterDateTo, filterContributors, filterGroups, filterEvents, filterEventAssignment, filterEventCategories, sortKey, contribEventMap, events]);
+  }, [contributions, contribFilter, search, filterDateFrom, filterDateTo, filterContributors, filterGroups, filterEvents, filterNotInEvents, filterEventCategories, sortKey, contribEventMap, events]);
 
   const filteredEvents = useMemo(() => {
     let list = [...events];
@@ -618,10 +612,10 @@ function ChroniclerContent() {
                 </div>
               )}
 
-              {/* Groups */}
+              {/* EventGroups (organizational merge buckets) */}
               {groups.length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Zaradenie v skupine</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Zlúčenie</p>
                   <div className="flex flex-wrap gap-1.5">
                     {groups.map((g) => {
                       const active = filterGroups.has(g.id);
@@ -642,59 +636,47 @@ function ChroniclerContent() {
                 </div>
               )}
 
-              {/* Events */}
-              {events.length > 0 && (
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Konkrétna udalosť</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {events.map((ev) => {
-                      const active = filterEvents.has(ev.id);
-                      return (
-                        <button
-                          key={ev.id}
-                          onClick={() => setFilterEvents((prev) => toggleSet(prev, ev.id))}
-                          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
-                            active ? "border-gold bg-gold-dim text-gold" : "border-rim text-ink-dim hover:text-ink"
-                          }`}
-                        >
-                          {active && <CheckSmallIcon />}
-                          {ev.title}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Event assignment */}
+              {/* Events — combined: specific events (multi) + Nezaradené */}
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Zaradenie v udalosti</p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {([
-                    { key: "all" as EventAssignmentFilter, label: "Všetky" },
-                    { key: "in-events" as EventAssignmentFilter, label: "Zaradené" },
-                    { key: "not-in-events" as EventAssignmentFilter, label: "Nezaradené" },
-                  ]).map(({ key, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => setFilterEventAssignment(key)}
-                      className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
-                        filterEventAssignment === key
-                          ? "border-gold bg-gold-dim text-gold"
-                          : "border-rim text-ink-dim hover:text-ink"
-                      }`}
-                    >
-                      {filterEventAssignment === key && <CheckSmallIcon />}
-                      {label}
-                    </button>
-                  ))}
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Udalosť</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {events.map((ev) => {
+                    const active = filterEvents.has(ev.id);
+                    return (
+                      <button
+                        key={ev.id}
+                        onClick={() => {
+                          setFilterNotInEvents(false);
+                          setFilterEvents((prev) => toggleSet(prev, ev.id));
+                        }}
+                        className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                          active ? "border-gold bg-gold-dim text-gold" : "border-rim text-ink-dim hover:text-ink"
+                        }`}
+                      >
+                        {active && <CheckSmallIcon />}
+                        {ev.title}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => {
+                      setFilterEvents(new Set());
+                      setFilterNotInEvents((prev) => !prev);
+                    }}
+                    className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                      filterNotInEvents ? "border-gold bg-gold-dim text-gold" : "border-rim text-ink-dim hover:text-ink"
+                    }`}
+                  >
+                    {filterNotInEvents && <CheckSmallIcon />}
+                    Nezaradené
+                  </button>
                 </div>
               </div>
 
-              {/* Event category multiselect */}
+              {/* Category (person group) filter */}
               {categories.length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Skupina udalosti</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Skupina</p>
                   <div className="flex flex-wrap gap-1.5">
                     {categories.map((cat) => {
                       const active = filterEventCategories.has(cat.id);
