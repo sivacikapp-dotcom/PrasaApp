@@ -46,6 +46,19 @@ function fromFirestore(id: string, data: Record<string, unknown>): ChronicleEven
   };
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+async function markContributionsProcessed(ids: string[]): Promise<void> {
+  await Promise.all(
+    ids.map((id) =>
+      updateDoc(doc(db, "contributions", id), {
+        status: "processed",
+        updatedAt: serverTimestamp(),
+      })
+    )
+  );
+}
+
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function createEvent(input: {
@@ -71,6 +84,7 @@ export async function createEvent(input: {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  await markContributionsProcessed(input.contributionIds);
   return ref.id;
 }
 
@@ -152,10 +166,13 @@ export async function addContributionsToEvent(
   const current = (snap.data().contributionIds as string[]) ?? [];
   const toAdd = newIds.filter((id) => !current.includes(id));
   if (toAdd.length === 0) return;
-  await updateDoc(ref, {
-    contributionIds: [...current, ...toAdd],
-    updatedAt: serverTimestamp(),
-  });
+  await Promise.all([
+    updateDoc(ref, {
+      contributionIds: [...current, ...toAdd],
+      updatedAt: serverTimestamp(),
+    }),
+    markContributionsProcessed(toAdd),
+  ]);
 }
 
 export async function removeContributionFromEvent(
