@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getAllUsers } from "@/lib/userService";
+import { useI18n } from "@/contexts/I18nContext";
 import type { AppUser } from "@/types/user";
 
 interface UserPickerModalProps {
@@ -12,6 +13,7 @@ interface UserPickerModalProps {
 }
 
 export function UserPickerModal({ open, excludeIds, onConfirm, onClose }: UserPickerModalProps) {
+  const { t } = useI18n();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export function UserPickerModal({ open, excludeIds, onConfirm, onClose }: UserPi
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative z-10 w-full max-w-lg rounded-t-2xl sm:rounded-2xl bg-surface border border-rim shadow-2xl flex flex-col max-h-[70vh]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-rim shrink-0">
-          <h2 className="text-sm font-semibold text-ink">Pridať oprávneného editora</h2>
+          <h2 className="text-sm font-semibold text-ink">{t.components.userPickerTitle}</h2>
           <button onClick={onClose} className="p-1 text-ink-subtle hover:text-ink">
             <XIcon />
           </button>
@@ -52,9 +54,9 @@ export function UserPickerModal({ open, excludeIds, onConfirm, onClose }: UserPi
 
         <div className="overflow-y-auto flex-1">
           {loading ? (
-            <div className="py-10 text-center text-sm text-ink-subtle">Načítavam…</div>
+            <div className="py-10 text-center text-sm text-ink-subtle">{t.components.loadingContribs}</div>
           ) : users.length === 0 ? (
-            <div className="py-10 text-center text-sm text-ink-subtle">Žiadni dostupní používatelia.</div>
+            <div className="py-10 text-center text-sm text-ink-subtle">{t.components.userPickerEmpty}</div>
           ) : (
             users.map((u) => (
               <button
@@ -77,7 +79,7 @@ export function UserPickerModal({ open, excludeIds, onConfirm, onClose }: UserPi
                   <p className="text-xs text-ink-subtle truncate">{u.email}</p>
                 </div>
                 {saving === u.uid && (
-                  <span className="text-xs text-ink-subtle shrink-0">Pridávam…</span>
+                  <span className="text-xs text-ink-subtle shrink-0">{t.components.addingBtn}</span>
                 )}
               </button>
             ))
@@ -89,7 +91,7 @@ export function UserPickerModal({ open, excludeIds, onConfirm, onClose }: UserPi
             onClick={onClose}
             className="w-full rounded-xl border border-rim py-2.5 text-sm font-medium text-ink-dim hover:bg-surface-high"
           >
-            Zrušiť
+            {t.components.cancelBtn}
           </button>
         </div>
       </div>

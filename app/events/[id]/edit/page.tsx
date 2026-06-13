@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { sk } from "date-fns/locale";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
 import { Button } from "@/components/ui/Button";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { getEvent, updateEvent, addContributionsToEvent } from "@/lib/eventService";
 import { getCategories } from "@/lib/categoryService";
 import { getAllContributions, getContribution } from "@/lib/contributionService";
@@ -23,6 +23,7 @@ function EventEditContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { appUser } = useAuth();
+  const { t, dateFnsLocale } = useI18n();
 
   const [event, setEvent] = useState<ChronicleEvent | null>(null);
   const [contributions, setContributions] = useState<Contribution[]>([]);
@@ -135,13 +136,13 @@ function EventEditContent() {
         <NavBar />
         <div className="mx-auto max-w-2xl px-4 py-16 text-center space-y-2">
           <p className="text-sm font-medium text-ink-dim">
-            {denied ? "Nemáte oprávnenie upravovať túto udalosť." : "Udalosť neexistuje."}
+            {denied ? t.eventDetail.notAuthorized : t.eventDetail.notFound}
           </p>
           <button
             onClick={() => router.push("/events")}
             className="text-sm text-gold hover:underline"
           >
-            Späť na udalosti
+            {t.eventDetail.backToEvents}
           </button>
         </div>
       </>
@@ -161,43 +162,43 @@ function EventEditContent() {
             <BackIcon />
           </button>
           <h1 className="flex-1 text-base font-semibold text-ink truncate">
-            Upraviť: {event.title}
+            {t.eventDetail.editTitle(event.title)}
           </h1>
         </div>
 
         {/* Metadata form */}
         <section className="rounded-xl border border-rim bg-surface p-4 space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-            Informácie o udalosti
+            {t.eventDetail.infoHeading}
           </h2>
 
           <div>
             <label className="block text-xs font-medium text-ink-dim mb-1.5">
-              Názov udalosti <span className="text-danger">*</span>
+              {t.chronicler.eventNameLabel} <span className="text-danger">*</span>
             </label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="napr. Letný tábor 2025"
+              placeholder={t.chronicler.eventNamePlaceholder}
               className={INPUT_CLS}
             />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-ink-dim mb-1.5">
-              Miesto udalosti
+              {t.eventDetail.locationLabel}
             </label>
             <input
               value={locationName}
               onChange={(e) => setLocationName(e.target.value)}
-              placeholder="napr. Rybník Slnečné jazero, Bratislava"
+              placeholder={t.eventDetail.locationPlaceholder}
               className={INPUT_CLS}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-ink-dim mb-1.5">Dátum od</label>
+              <label className="block text-xs font-medium text-ink-dim mb-1.5">{t.eventDetail.dateFrom}</label>
               <input
                 type="date"
                 value={dateFrom}
@@ -206,7 +207,7 @@ function EventEditContent() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-ink-dim mb-1.5">Dátum do</label>
+              <label className="block text-xs font-medium text-ink-dim mb-1.5">{t.eventDetail.dateTo}</label>
               <input
                 type="date"
                 value={dateTo}
@@ -218,12 +219,12 @@ function EventEditContent() {
 
           <div>
             <label className="block text-xs font-medium text-ink-dim mb-1.5">
-              Popis udalosti
+              {t.eventDetail.descriptionLabel}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Krátky popis udalosti…"
+              placeholder={t.eventDetail.descriptionPlaceholder}
               rows={4}
               className={`${INPUT_CLS} resize-none`}
             />
@@ -233,11 +234,11 @@ function EventEditContent() {
         {/* Existing contributions */}
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-ink">
-            Príspevky v udalosti ({contributions.length})
+            {t.eventDetail.contribsInEvent(contributions.length)}
           </h2>
           {contributions.length === 0 ? (
             <div className="rounded-xl border border-rim py-8 text-center">
-              <p className="text-sm text-ink-subtle">Udalosť zatiaľ neobsahuje žiadne príspevky.</p>
+              <p className="text-sm text-ink-subtle">{t.eventDetail.noContribsInEvent}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -247,14 +248,14 @@ function EventEditContent() {
                 return (
                   <div key={c.id} className="rounded-xl border border-rim bg-surface px-3 py-2.5">
                     <p className="text-xs font-medium text-gold">
-                      {format(date, "d. MMMM yyyy", { locale: sk })}
+                      {format(date, "d. MMMM yyyy", { locale: dateFnsLocale })}
                       <span className="ml-2 font-normal text-ink-subtle">{c.contributorName}</span>
                     </p>
                     {c.texts[0] && (
                       <p className="mt-1 text-sm text-ink line-clamp-2">{c.texts[0]}</p>
                     )}
                     {!c.texts[0] && photoCount > 0 && (
-                      <p className="mt-1 text-xs text-ink-subtle">{photoCount} fotografia</p>
+                      <p className="mt-1 text-xs text-ink-subtle">{t.components.photoCount(photoCount)}</p>
                     )}
                   </div>
                 );
@@ -270,14 +271,14 @@ function EventEditContent() {
             onClick={() => setAddContribOpen(true)}
             className="flex items-center gap-1.5 rounded-xl border border-rim px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink"
           >
-            <PlusIcon /> Pridať príspevky
+            <PlusIcon /> {t.eventDetail.addContribsBtn}
           </button>
           <button
             type="button"
             onClick={() => setAddGroupOpen(true)}
             className="flex items-center gap-1.5 rounded-xl border border-rim px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink"
           >
-            <FolderIcon /> Pridať skupinu
+            <FolderIcon /> {t.eventDetail.addGroupBtn}
           </button>
         </section>
       </main>
@@ -292,14 +293,14 @@ function EventEditContent() {
             disabled={!title.trim()}
             onClick={handleSave}
           >
-            {saved ? "✓ Uložené" : "Uložiť udalosť"}
+            {saved ? t.eventDetail.savedBtn : t.eventDetail.saveBtn}
           </Button>
         </div>
       </div>
 
       <ContributionPickerModal
         open={addContribOpen}
-        title="Pridať príspevky do udalosti"
+        title={t.eventDetail.addContribsModalTitle}
         alreadyIncluded={event.contributionIds}
         allowedCategoryIds={allowedCategoryIds}
         onConfirm={handleAddContributions}

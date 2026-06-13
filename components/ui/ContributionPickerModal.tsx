@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { sk } from "date-fns/locale";
 import { getAllContributions } from "@/lib/contributionService";
+import { useI18n } from "@/contexts/I18nContext";
 import type { Contribution } from "@/types/contribution";
 
 interface ContributionPickerModalProps {
@@ -23,6 +23,7 @@ export function ContributionPickerModal({
   onConfirm,
   onClose,
 }: ContributionPickerModalProps) {
+  const { t, dateFnsLocale } = useI18n();
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -81,10 +82,10 @@ export function ContributionPickerModal({
         {/* List */}
         <div className="overflow-y-auto flex-1">
           {loading ? (
-            <div className="py-10 text-center text-sm text-ink-subtle">Načítavam…</div>
+            <div className="py-10 text-center text-sm text-ink-subtle">{t.components.loadingContribs}</div>
           ) : contributions.length === 0 ? (
             <div className="py-10 text-center text-sm text-ink-subtle">
-              Žiadne spracované príspevky na pridanie.
+              {t.components.noProcessedContribs}
             </div>
           ) : (
             contributions.map((c) => {
@@ -112,14 +113,16 @@ export function ContributionPickerModal({
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-gold">
-                      {format(date, "d. MMMM yyyy", { locale: sk })}
+                      {format(date, "d. MMMM yyyy", { locale: dateFnsLocale })}
                       <span className="ml-2 font-normal text-ink-subtle">{c.contributorName}</span>
                     </p>
                     {c.texts[0] && (
                       <p className="mt-0.5 text-xs text-ink line-clamp-2">{c.texts[0]}</p>
                     )}
                     {!c.texts[0] && c.photoUrls.length > 0 && (
-                      <p className="mt-0.5 text-xs text-ink-subtle">{c.photoUrls.length} fotograf{c.photoUrls.length === 1 ? "ia" : "ie"}</p>
+                      <p className="mt-0.5 text-xs text-ink-subtle">
+                        {t.components.photoCount(c.photoUrls.length)}
+                      </p>
                     )}
                   </div>
                 </button>
@@ -134,14 +137,14 @@ export function ContributionPickerModal({
             onClick={onClose}
             className="flex-1 rounded-xl border border-rim py-2.5 text-sm font-medium text-ink-dim hover:bg-surface-high"
           >
-            Zrušiť
+            {t.components.cancelBtn}
           </button>
           <button
             onClick={handleConfirm}
             disabled={selected.size === 0 || saving}
             className="flex-1 rounded-xl bg-gold py-2.5 text-sm font-semibold text-gold-text disabled:opacity-40"
           >
-            {saving ? "Pridávam…" : `Pridať${selected.size > 0 ? ` (${selected.size})` : ""}`}
+            {saving ? t.components.addingBtn : t.components.addBtn(selected.size)}
           </button>
         </div>
       </div>

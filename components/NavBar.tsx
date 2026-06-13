@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { usePendingCount } from "@/hooks/useContributions";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 
 export function NavBar() {
   const { appUser, signOut, hasRole } = useAuth();
+  const { t } = useI18n();
   const pathname = usePathname();
   const { count: pendingCount } = usePendingCount();
   const { isOnline, pendingCount: offlineCount } = useOfflineSync();
@@ -17,15 +20,15 @@ export function NavBar() {
   const isChroniclerMode = isChronicler && pathname.startsWith("/chronicler");
 
   const links = [
-    { href: "/dashboard", label: "Príspevky", show: true },
-    { href: "/events", label: "Udalosti", show: true },
+    { href: "/dashboard", label: t.nav.contributions, show: true },
+    { href: "/events", label: t.nav.events, show: true },
     {
       href: "/chronicler",
-      label: "Kronikár",
+      label: t.nav.chronicler,
       show: isChronicler,
       badge: pendingCount > 0 ? pendingCount : undefined,
     },
-    { href: "/admin", label: "Správa", show: isAdmin || isChronicler },
+    { href: "/admin", label: t.nav.admin, show: isAdmin || isChronicler },
   ];
 
   return (
@@ -62,7 +65,7 @@ export function NavBar() {
           {/* Offline / pending upload indicator */}
           {!isOnline && (
             <span
-              title="Offline – príspevky sa uložia lokálne"
+              title={t.nav.offlineTitle}
               className="flex items-center gap-1 text-xs text-ink-subtle"
             >
               <CloudOffIcon />
@@ -70,7 +73,7 @@ export function NavBar() {
           )}
           {isOnline && offlineCount > 0 && (
             <span
-              title={`${offlineCount} príspevok čaká na odoslanie`}
+              title={t.nav.pendingUpload(offlineCount)}
               className="flex items-center gap-1 text-xs text-gold"
             >
               <CloudUpIcon />
@@ -81,7 +84,7 @@ export function NavBar() {
           {isChroniclerMode && (
             <span className="flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">
               <PenIcon />
-              Kronikár
+              {t.nav.chroniclerBadge}
             </span>
           )}
           {appUser?.photoURL && (
@@ -92,11 +95,14 @@ export function NavBar() {
               className={`h-7 w-7 rounded-full ${isChroniclerMode ? "ring-2 ring-violet-400" : "ring-1 ring-rim"}`}
             />
           )}
+
+          <LanguageSwitcher />
+
           <button
             onClick={signOut}
             className="rounded-lg px-2.5 py-1.5 text-xs text-ink-subtle hover:bg-surface hover:text-ink-dim"
           >
-            Odhlásiť
+            {t.nav.signOut}
           </button>
         </div>
       </div>

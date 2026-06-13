@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 
 export interface PhotoFile {
   file: File;
@@ -16,6 +17,7 @@ interface PhotoUploaderProps {
 }
 
 export function PhotoUploader({ photos, existingUrls = [], onChange, onDeleteExisting, maxCount = 10 }: PhotoUploaderProps) {
+  const { t } = useI18n();
   const galleryRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const total = existingUrls.length + photos.length;
@@ -45,7 +47,7 @@ export function PhotoUploader({ photos, existingUrls = [], onChange, onDeleteExi
               {onDeleteExisting && (
                 <button type="button" onClick={() => onDeleteExisting(url)}
                   className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-ink hover:bg-black/80"
-                  aria-label="Odstrániť">
+                  aria-label={t.components.removePhoto}>
                   <XIcon />
                 </button>
               )}
@@ -57,7 +59,7 @@ export function PhotoUploader({ photos, existingUrls = [], onChange, onDeleteExi
               <img src={p.previewUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
               <button type="button" onClick={() => removeNew(i)}
                 className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-ink hover:bg-black/80"
-                aria-label="Odstrániť">
+                aria-label={t.components.removePhoto}>
                 <XIcon />
               </button>
             </div>
@@ -69,11 +71,11 @@ export function PhotoUploader({ photos, existingUrls = [], onChange, onDeleteExi
         <div className="flex gap-2 flex-wrap">
           <button type="button" onClick={() => cameraRef.current?.click()}
             className="flex items-center gap-1.5 rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink">
-            <CameraIcon /> Odfotiť
+            <CameraIcon /> {t.components.takePhoto}
           </button>
           <button type="button" onClick={() => galleryRef.current?.click()}
             className="flex items-center gap-1.5 rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink">
-            <PhotoIcon /> Z galérie
+            <PhotoIcon /> {t.components.fromGallery}
           </button>
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
             onChange={(e) => handleFiles(e.target.files)} />
@@ -81,7 +83,7 @@ export function PhotoUploader({ photos, existingUrls = [], onChange, onDeleteExi
             onChange={(e) => handleFiles(e.target.files)} />
         </div>
       )}
-      {!canAdd && <p className="text-xs text-ink-subtle">Dosiahnutý maximálny počet fotografií ({maxCount})</p>}
+      {!canAdd && <p className="text-xs text-ink-subtle">{t.components.maxPhotosReached(maxCount)}</p>}
     </div>
   );
 }

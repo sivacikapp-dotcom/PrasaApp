@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Button } from "./Button";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface ModalProps {
   open: boolean;
@@ -12,6 +13,8 @@ interface ModalProps {
 }
 
 export function Modal({ open, title, onClose, children, footer }: ModalProps) {
+  const { t } = useI18n();
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -34,7 +37,7 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
           <button
             onClick={onClose}
             className="rounded-full p-1.5 text-ink-subtle hover:bg-surface hover:text-ink-dim"
-            aria-label="Zavrieť"
+            aria-label={t.components.closeBtn}
           >
             <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
@@ -64,11 +67,12 @@ export function ConfirmModal({
   open,
   title,
   message,
-  confirmLabel = "Potvrdiť",
+  confirmLabel,
   onConfirm,
   onClose,
   danger,
 }: ConfirmModalProps) {
+  const { t } = useI18n();
   return (
     <Modal
       open={open}
@@ -77,10 +81,10 @@ export function ConfirmModal({
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose}>
-            Zrušiť
+            {t.components.cancelBtn}
           </Button>
           <Button variant={danger ? "danger" : "primary"} size="sm" onClick={onConfirm}>
-            {confirmLabel}
+            {confirmLabel ?? t.components.confirmBtn}
           </Button>
         </>
       }

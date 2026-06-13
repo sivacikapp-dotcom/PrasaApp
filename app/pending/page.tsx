@@ -1,9 +1,11 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 
 export default function PendingPage() {
   const { appUser, signOut } = useAuth();
+  const { t } = useI18n();
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-6 bg-canvas">
@@ -11,17 +13,16 @@ export default function PendingPage() {
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-warning-dim">
           <ClockIcon />
         </div>
-        <h1 className="text-lg font-semibold text-ink">Čakáte na schválenie</h1>
+        <h1 className="text-lg font-semibold text-ink">{t.pending.title}</h1>
         <p className="text-sm text-ink-dim">
-          Váš účet <strong className="text-ink">{appUser?.email}</strong> bol zaregistrovaný
-          a čaká na aktiváciu správcom aplikácie.
+          {t.pending.description(appUser?.email ?? "")}
         </p>
-        <p className="text-sm text-ink-dim">Po schválení sa môžete prihlásiť znova.</p>
+        <p className="text-sm text-ink-dim">{t.pending.afterApproval}</p>
         <button
           onClick={signOut}
           className="mt-2 text-sm text-gold hover:underline"
         >
-          Odhlásiť sa
+          {t.pending.signOut}
         </button>
       </div>
     </main>

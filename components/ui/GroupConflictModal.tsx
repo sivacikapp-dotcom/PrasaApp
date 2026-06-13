@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface GroupConflictModalProps {
   open: boolean;
@@ -26,6 +27,7 @@ export function GroupConflictModal({
   onSkipConflicting,
   onCancel,
 }: GroupConflictModalProps) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
 
   async function handleChangeCategory() {
@@ -46,15 +48,11 @@ export function GroupConflictModal({
             <WarningIcon />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-ink">Konflikt skupiny</h2>
+            <h2 className="text-sm font-semibold text-ink">{t.groupConflict.title}</h2>
             <p className="mt-1 text-xs text-ink-dim leading-relaxed">
-              {conflictingCount}{" "}
-              {conflictingCount === 1 ? "príspevok má" : conflictingCount < 5 ? "príspevky majú" : "príspevkov má"}{" "}
-              inú skupinu ako táto skupina/udalosť{" "}
+              {t.groupConflict.conflictingHave(conflictingCount)}{" "}
               <strong className="text-ink">({dominantCategoryName})</strong>.
-              {compatibleCount > 0 && (
-                <> {compatibleCount} {compatibleCount === 1 ? "príspevok" : "príspevkov"} je kompatibilných.</>
-              )}
+              {compatibleCount > 0 && t.groupConflict.compatibleInfo(compatibleCount)}
             </p>
           </div>
         </div>
@@ -67,12 +65,10 @@ export function GroupConflictModal({
             className="w-full rounded-xl border border-gold bg-gold-dim px-4 py-3 text-left hover:bg-gold/20 disabled:opacity-50"
           >
             <p className="text-sm font-semibold text-gold">
-              A: Zmeniť skupinu príspevkov
+              {t.groupConflict.optionATitle}
             </p>
             <p className="mt-0.5 text-xs text-ink-dim">
-              Skupina{" "}
-              {conflictingCount === 1 ? "príspevku" : `všetkých ${conflictingCount} príspevkov`}{" "}
-              sa zmení na <strong>{dominantCategoryName}</strong> a všetky budú pridané.
+              {t.groupConflict.optionADesc(conflictingCount, dominantCategoryName)}
             </p>
           </button>
 
@@ -82,12 +78,10 @@ export function GroupConflictModal({
             className="w-full rounded-xl border border-rim px-4 py-3 text-left hover:bg-surface-high disabled:opacity-40"
           >
             <p className="text-sm font-semibold text-ink">
-              B: Nepridať príspevky s inou skupinou
+              {t.groupConflict.optionBTitle}
             </p>
             <p className="mt-0.5 text-xs text-ink-dim">
-              {compatibleCount > 0
-                ? `Pridá sa iba ${compatibleCount} kompatibilných ${compatibleCount === 1 ? "príspevok" : "príspevkov"}.`
-                : "Žiadne príspevky na pridanie."}
+              {t.groupConflict.optionBDesc(compatibleCount)}
             </p>
           </button>
         </div>
@@ -97,7 +91,7 @@ export function GroupConflictModal({
           disabled={busy}
           className="w-full rounded-xl border border-rim py-2 text-sm text-ink-dim hover:bg-surface-high"
         >
-          Zrušiť
+          {t.groupConflict.cancelBtn}
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 
 export interface VideoFile {
   file: File;
@@ -14,6 +15,7 @@ interface VideoUploaderProps {
 }
 
 export function VideoUploader({ videos, onChange, maxCount = 3 }: VideoUploaderProps) {
+  const { t } = useI18n();
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const canAdd = videos.length < maxCount;
@@ -47,7 +49,7 @@ export function VideoUploader({ videos, onChange, maxCount = 3 }: VideoUploaderP
               type="button"
               onClick={() => remove(i)}
               className="shrink-0 text-ink-subtle hover:text-danger"
-              aria-label="Odstrániť video"
+              aria-label={t.components.removeVideo}
             >
               <TrashSmallIcon />
             </button>
@@ -62,14 +64,14 @@ export function VideoUploader({ videos, onChange, maxCount = 3 }: VideoUploaderP
             onClick={() => cameraRef.current?.click()}
             className="flex items-center gap-1.5 rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink"
           >
-            <VideoIcon /> Nahrať video
+            <VideoIcon /> {t.components.recordVideo}
           </button>
           <button
             type="button"
             onClick={() => galleryRef.current?.click()}
             className="flex items-center gap-1.5 rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink"
           >
-            <FilmIcon /> Z galérie
+            <FilmIcon /> {t.components.fromGallery}
           </button>
           <input
             ref={cameraRef}
@@ -90,7 +92,7 @@ export function VideoUploader({ videos, onChange, maxCount = 3 }: VideoUploaderP
         </div>
       )}
       {!canAdd && (
-        <p className="text-xs text-ink-subtle">Dosiahnutý maximálny počet videí ({maxCount})</p>
+        <p className="text-xs text-ink-subtle">{t.components.maxVideosReached(maxCount)}</p>
       )}
     </div>
   );

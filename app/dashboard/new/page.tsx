@@ -10,6 +10,7 @@ import { VoiceRecorder } from "@/components/contributions/VoiceRecorder";
 import { PhotoUploader, type PhotoFile } from "@/components/contributions/PhotoUploader";
 import { VideoUploader, type VideoFile } from "@/components/contributions/VideoUploader";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { useLocation } from "@/hooks/useLocation";
 import { createContribution, updateContribution } from "@/lib/contributionService";
 import { uploadPhoto, uploadVideo, uploadVoice } from "@/lib/storageService";
@@ -23,6 +24,7 @@ const INPUT_CLS =
 
 function NewContributionForm() {
   const { appUser } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const { state: locState, capture: captureLocation } = useLocation();
 
@@ -98,11 +100,11 @@ function NewContributionForm() {
     e.preventDefault();
     if (!appUser) return;
     if (countFields() < 2) {
-      setError("Príspevok musí obsahovať aspoň 2 z týchto údajov: text, GPS poloha, fotografia, hlasová správa. Doplňte aspoň jeden ďalší údaj.");
+      setError(t.newContribution.errorMinFields);
       return;
     }
     if (accessibleGroups.length > 0 && selectedCategoryIds.size === 0 && !noGroupConfirmed) {
-      setError("Potvrďte, že príspevok nebude zaradený do žiadnej skupiny.");
+      setError(t.newContribution.errorNoGroup);
       return;
     }
     setSaving(true);
@@ -178,7 +180,7 @@ function NewContributionForm() {
       router.push("/dashboard");
     } catch (err) {
       console.error(err);
-      setError("Nepodarilo sa uložiť príspevok. Skúste znova.");
+      setError(t.newContribution.errorSave);
       setSaving(false);
     }
   }
@@ -191,25 +193,25 @@ function NewContributionForm() {
           <button onClick={() => router.back()} className="text-ink-subtle hover:text-ink-dim">
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 12H5M12 5l-7 7 7 7" /></svg>
           </button>
-          <h1 className="text-lg font-semibold text-ink">Nový príspevok</h1>
+          <h1 className="text-lg font-semibold text-ink">{t.newContribution.title}</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-ink-dim mb-1.5">Dátum udalosti</label>
+            <label className="block text-sm font-medium text-ink-dim mb-1.5">{t.newContribution.eventDate}</label>
             <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)}
               className={INPUT_CLS} required />
           </div>
 
           {/* Multiple texts */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-ink-dim">Textové poznámky</label>
-            {texts.map((t, i) => (
+            <label className="block text-sm font-medium text-ink-dim">{t.newContribution.textNotes}</label>
+            {texts.map((txt, i) => (
               <div key={i} className="flex gap-2">
                 <textarea
-                  value={t}
+                  value={txt}
                   onChange={(e) => updateText(i, e.target.value)}
-                  placeholder="Čo sa udialo?"
+                  placeholder={t.newContribution.textPlaceholder}
                   rows={3}
                   className={`${INPUT_CLS} resize-none flex-1`}
                 />
@@ -218,7 +220,7 @@ function NewContributionForm() {
                     type="button"
                     onClick={() => removeText(i)}
                     className="shrink-0 self-start mt-1 rounded-lg p-1.5 text-ink-subtle hover:text-danger hover:bg-danger-dim"
-                    title="Odstrániť poznámku"
+                    title={t.newContribution.removeNote}
                   >
                     <TrashSmallIcon />
                   </button>
@@ -230,23 +232,23 @@ function NewContributionForm() {
               onClick={addText}
               className="flex items-center gap-1.5 text-sm text-gold hover:text-gold/80"
             >
-              <PlusSmallIcon /> Pridať ďalšiu poznámku
+              <PlusSmallIcon /> {t.newContribution.addNote}
             </button>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink-dim mb-2">Fotografie</label>
+            <label className="block text-sm font-medium text-ink-dim mb-2">{t.newContribution.photos}</label>
             <PhotoUploader photos={photos} onChange={setPhotos} />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink-dim mb-2">Videá</label>
+            <label className="block text-sm font-medium text-ink-dim mb-2">{t.newContribution.videos}</label>
             <VideoUploader videos={videos} onChange={setVideos} />
           </div>
 
           {/* Multiple voices */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-ink-dim">Hlasové správy</label>
+            <label className="block text-sm font-medium text-ink-dim">{t.newContribution.voiceMessages}</label>
             {voiceBlobs.map(({ previewUrl }, i) => (
               <div key={previewUrl} className="flex items-center gap-2 rounded-xl bg-surface border border-rim px-3 py-2">
                 <audio src={previewUrl} controls className="h-8 flex-1 min-w-0" />
@@ -254,7 +256,7 @@ function NewContributionForm() {
                   type="button"
                   onClick={() => removeVoice(i)}
                   className="shrink-0 text-ink-subtle hover:text-danger"
-                  aria-label="Odstrániť nahrávku"
+                  aria-label={t.newContribution.removeVoice}
                 >
                   <TrashSmallIcon />
                 </button>
@@ -269,7 +271,7 @@ function NewContributionForm() {
 
           {accessibleGroups.length > 0 && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-ink-dim">Skupiny</label>
+              <label className="block text-sm font-medium text-ink-dim">{t.newContribution.groups}</label>
               <div className="flex flex-wrap gap-2">
                 {accessibleGroups.map((g) => {
                   const selected = selectedCategoryIds.has(g.id);
@@ -294,7 +296,7 @@ function NewContributionForm() {
               {selectedCategoryIds.size === 0 && (
                 <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 space-y-2">
                   <p className="text-xs font-medium text-warning">
-                    Príspevok nebude zaradený do žiadnej skupiny.
+                    {t.newContribution.noGroupWarning}
                   </p>
                   <label className="flex items-start gap-2 cursor-pointer">
                     <input
@@ -304,7 +306,7 @@ function NewContributionForm() {
                       className="mt-0.5 h-4 w-4 shrink-0 accent-gold"
                     />
                     <span className="text-xs text-ink-dim">
-                      Beriem na vedomie, že príspevok nebude zaradený do žiadnej skupiny
+                      {t.newContribution.noGroupAcknowledge}
                     </span>
                   </label>
                 </div>
@@ -314,13 +316,13 @@ function NewContributionForm() {
 
           <div className="flex items-center gap-2 text-sm">
             {locState.status === "ok" && (
-              <span className="flex items-center gap-1.5 text-success"><PinIcon /> Lokalita zachytená</span>
+              <span className="flex items-center gap-1.5 text-success"><PinIcon /> {t.newContribution.locationOk}</span>
             )}
-            {locState.status === "loading" && <span className="text-ink-subtle">Zachytávam polohu…</span>}
-            {locState.status === "denied" && <span className="text-ink-subtle">Poloha nedostupná</span>}
+            {locState.status === "loading" && <span className="text-ink-subtle">{t.newContribution.locationLoading}</span>}
+            {locState.status === "denied" && <span className="text-ink-subtle">{t.newContribution.locationDenied}</span>}
             {locState.status === "idle" && (
               <button type="button" onClick={captureLocation} className="text-gold hover:underline">
-                Zachytiť polohu
+                {t.newContribution.locationCapture}
               </button>
             )}
           </div>
@@ -328,7 +330,7 @@ function NewContributionForm() {
           {error && <p className="text-sm text-danger">{error}</p>}
 
           <Button type="submit" loading={saving} size="lg" className="w-full">
-            Uložiť príspevok
+            {t.newContribution.save}
           </Button>
         </form>
       </main>

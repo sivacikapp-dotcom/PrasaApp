@@ -3,17 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { sk } from "date-fns/locale";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { getCategories } from "@/lib/categoryService";
 import { getEvents, getEventsForUser } from "@/lib/eventService";
 import type { ChronicleEvent, Group } from "@/types/contribution";
+import type { Locale as DateFnsLocale } from "date-fns";
 
 function EventsContent() {
   const { appUser } = useAuth();
+  const { t, dateFnsLocale } = useI18n();
   const [events, setEvents] = useState<ChronicleEvent[]>([]);
   const [categories, setCategories] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +40,7 @@ function EventsContent() {
     <>
       <NavBar />
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24 space-y-4">
-        <h1 className="text-lg font-semibold text-ink">Udalosti</h1>
+        <h1 className="text-lg font-semibold text-ink">{t.events.title}</h1>
 
         {loading ? (
           <PageSpinner />
@@ -47,14 +49,14 @@ function EventsContent() {
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface">
               <CalendarIcon className="h-7 w-7 text-ink-subtle" />
             </div>
-            <p className="text-sm text-ink-dim">Žiadne dostupné udalosti.</p>
-            <p className="text-xs text-ink-subtle">Kronikár vám musí najprv sprístupniť skupinu.</p>
+            <p className="text-sm text-ink-dim">{t.events.empty}</p>
+            <p className="text-xs text-ink-subtle">{t.events.noAccess}</p>
           </div>
         ) : (
           <div className="space-y-3">
             {events.map((ev) => {
               const cat = categories.find((c) => c.id === ev.categoryId);
-              const dateLabel = buildDateLabel(ev);
+              const dateLabel = buildDateLabel(ev, dateFnsLocale);
               return (
                 <Link
                   key={ev.id}
@@ -90,7 +92,7 @@ function EventsContent() {
 
                   <div className="mt-2 flex items-center gap-2">
                     <span className="rounded-full bg-surface-high px-2 py-0.5 text-[10px] text-ink-subtle">
-                      {ev.contributionIds.length} príspevkov
+                      {t.events.contributionCount(ev.contributionIds.length)}
                     </span>
                   </div>
                 </Link>
@@ -103,12 +105,12 @@ function EventsContent() {
   );
 }
 
-function buildDateLabel(ev: ChronicleEvent): string | null {
+function buildDateLabel(ev: ChronicleEvent, locale: DateFnsLocale): string | null {
   if (ev.dateFrom && ev.dateTo) {
-    return `${format(ev.dateFrom, "d. M.", { locale: sk })} – ${format(ev.dateTo, "d. M. yyyy", { locale: sk })}`;
+    return `${format(ev.dateFrom, "d. M.", { locale })} – ${format(ev.dateTo, "d. M. yyyy", { locale })}`;
   }
-  if (ev.dateFrom) return format(ev.dateFrom, "d. M. yyyy", { locale: sk });
-  if (ev.dateTo) return format(ev.dateTo, "d. M. yyyy", { locale: sk });
+  if (ev.dateFrom) return format(ev.dateFrom, "d. M. yyyy", { locale });
+  if (ev.dateTo) return format(ev.dateTo, "d. M. yyyy", { locale });
   return null;
 }
 

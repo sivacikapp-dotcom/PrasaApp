@@ -10,6 +10,7 @@ import { VoiceRecorder } from "@/components/contributions/VoiceRecorder";
 import { PhotoUploader, type PhotoFile } from "@/components/contributions/PhotoUploader";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { getContribution, updateContribution } from "@/lib/contributionService";
 import { uploadPhoto, uploadVoice, deleteFile } from "@/lib/storageService";
 import type { Contribution, VoiceNote } from "@/types/contribution";
@@ -21,6 +22,7 @@ function EditContributionForm() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { appUser } = useAuth();
+  const { t } = useI18n();
 
   const [contribution, setContribution] = useState<Contribution | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,10 +32,8 @@ function EditContributionForm() {
   const [texts, setTexts] = useState<string[]>([""]);
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
   const [newPhotos, setNewPhotos] = useState<PhotoFile[]>([]);
-  // Existing voices from Firestore
   const [existingVoices, setExistingVoices] = useState<VoiceNote[]>([]);
   const [deletedVoiceUrls, setDeletedVoiceUrls] = useState<string[]>([]);
-  // Newly recorded voices (not yet uploaded)
   const [newVoiceBlobs, setNewVoiceBlobs] = useState<{ blob: Blob; previewUrl: string }[]>([]);
   const [recorderKey, setRecorderKey] = useState(0);
 
@@ -59,7 +59,7 @@ function EditContributionForm() {
   }, [id]);
 
   function updateText(index: number, value: string) {
-    setTexts((prev) => prev.map((t, i) => (i === index ? value : t)));
+    setTexts((prev) => prev.map((txt, i) => (i === index ? value : txt)));
   }
   function addText() { setTexts((prev) => [...prev, ""]); }
   function removeText(index: number) { setTexts((prev) => prev.filter((_, i) => i !== index)); }
@@ -85,7 +85,7 @@ function EditContributionForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!appUser || !contribution) return;
-    const filteredTexts = texts.filter((t) => t.trim().length > 0);
+    const filteredTexts = texts.filter((txt) => txt.trim().length > 0);
     const hasPhotos = existingPhotos.length > 0 || newPhotos.length > 0;
     const hasVoices = existingVoices.length > 0 || newVoiceBlobs.length > 0;
     let fieldCount = 0;
@@ -94,13 +94,12 @@ function EditContributionForm() {
     if (hasPhotos) fieldCount++;
     if (hasVoices) fieldCount++;
     if (fieldCount < 2) {
-      setError("Príspevok musí obsahovať aspoň 2 z týchto údajov: text, GPS poloha, fotografia, hlasová správa. Doplňte aspoň jeden ďalší údaj.");
+      setError(t.contribEdit.minFieldsError);
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      // Delete removed voice files from storage
       await Promise.all(deletedVoiceUrls.map((url) => deleteFile(url)));
 
       const uploadedPhotos = await Promise.all(
@@ -124,7 +123,7 @@ function EditContributionForm() {
       router.push(`/dashboard/${id}`);
     } catch (err) {
       console.error(err);
-      setError("Nepodarilo sa uložiť zmeny. Skúste znova.");
+      setError(t.contribEdit.saveError);
       setSaving(false);
     }
   }
@@ -136,7 +135,7 @@ function EditContributionForm() {
       <>
         <NavBar />
         <div className="p-8 text-center text-ink-dim">
-          {notAllowed ? "Príspevok nie je možné upraviť." : "Príspevok neexistuje."}
+          {notAllowed ? t.contribEdit.notAllowed : t.contribEdit.notFound}
         </div>
       </>
     );
@@ -152,12 +151,12 @@ function EditContributionForm() {
               <path d="M19 12H5M12 5l-7 7 7 7" />
             </svg>
           </button>
-          <h1 className="text-lg font-semibold text-ink">Upraviť príspevok</h1>
+          <h1 className="text-lg font-semibold text-ink">{t.contribEdit.title}</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-ink-dim mb-1.5">Dátum udalosti</label>
+            <label className="block text-sm font-medium text-ink-dim mb-1.5">{t.contribEdit.eventDateLabel}</label>
             <input
               type="date"
               value={eventDate}
@@ -169,13 +168,13 @@ function EditContributionForm() {
 
           {/* Multiple texts */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-ink-dim">Textové poznámky</label>
-            {texts.map((t, i) => (
+            <label className="block text-sm font-medium text-ink-dim">{t.contribEdit.textsLabel}</label>
+            {texts.map((txt, i) => (
               <div key={i} className="flex gap-2">
                 <textarea
-                  value={t}
+                  value={txt}
                   onChange={(e) => updateText(i, e.target.value)}
-                  placeholder="Čo sa udialo?"
+                  placeholder={t.contribEdit.textPlaceholder}
                   rows={3}
                   className={`${INPUT_CLS} resize-none flex-1`}
                 />
@@ -184,7 +183,7 @@ function EditContributionForm() {
                     type="button"
                     onClick={() => removeText(i)}
                     className="shrink-0 self-start mt-1 rounded-lg p-1.5 text-ink-subtle hover:text-danger hover:bg-danger-dim"
-                    title="Odstrániť poznámku"
+                    title={t.contribEdit.removeNoteTitle}
                   >
                     <TrashSmallIcon />
                   </button>
@@ -196,12 +195,12 @@ function EditContributionForm() {
               onClick={addText}
               className="flex items-center gap-1.5 text-sm text-gold hover:text-gold/80"
             >
-              <PlusSmallIcon /> Pridať ďalšiu poznámku
+              <PlusSmallIcon /> {t.contribEdit.addNoteBtn}
             </button>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink-dim mb-2">Fotografie</label>
+            <label className="block text-sm font-medium text-ink-dim mb-2">{t.contribEdit.photosLabel}</label>
             <PhotoUploader
               photos={newPhotos}
               existingUrls={existingPhotos}
@@ -212,7 +211,7 @@ function EditContributionForm() {
 
           {/* Multiple voices */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-ink-dim">Hlasové správy</label>
+            <label className="block text-sm font-medium text-ink-dim">{t.contribEdit.voicesLabel}</label>
             {existingVoices.map((v) => (
               <div key={v.url} className="flex items-center gap-2 rounded-xl bg-surface border border-rim px-3 py-2">
                 <audio src={v.url} controls className="h-8 flex-1 min-w-0" />
@@ -220,7 +219,7 @@ function EditContributionForm() {
                   type="button"
                   onClick={() => removeExistingVoice(v.url)}
                   className="shrink-0 text-ink-subtle hover:text-danger"
-                  aria-label="Odstrániť nahrávku"
+                  aria-label={t.components.deleteRecording}
                 >
                   <TrashSmallIcon />
                 </button>
@@ -233,7 +232,7 @@ function EditContributionForm() {
                   type="button"
                   onClick={() => removeNewVoice(i)}
                   className="shrink-0 text-ink-subtle hover:text-danger"
-                  aria-label="Odstrániť nahrávku"
+                  aria-label={t.components.deleteRecording}
                 >
                   <TrashSmallIcon />
                 </button>
@@ -249,7 +248,7 @@ function EditContributionForm() {
           {error && <p className="text-sm text-danger">{error}</p>}
 
           <Button type="submit" loading={saving} size="lg" className="w-full">
-            Uložiť zmeny
+            {t.contribEdit.saveBtn}
           </Button>
         </form>
       </main>

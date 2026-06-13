@@ -3,10 +3,12 @@
 import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
-// 1. Pôvodnú logiku iba premenujeme na pod-komponentu
 function LoginFormContent() {
   const { firebaseUser, loading, signInWithGoogle } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const params = useSearchParams();
 
@@ -18,27 +20,30 @@ function LoginFormContent() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-6 bg-canvas">
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher />
+      </div>
+
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gold">Kronika</h1>
-        <p className="mt-2 text-ink-dim">Systém na zaznamenávanie udalostí</p>
+        <h1 className="text-3xl font-bold text-gold">{t.login.appName}</h1>
+        <p className="mt-2 text-ink-dim">{t.login.subtitle}</p>
       </div>
 
       <div className="w-full max-w-sm rounded-2xl border border-rim bg-surface p-8 shadow-xl">
-        <h2 className="mb-6 text-center text-base font-semibold text-ink">Prihlásenie</h2>
+        <h2 className="mb-6 text-center text-base font-semibold text-ink">{t.login.heading}</h2>
         <button
           onClick={signInWithGoogle}
           disabled={loading}
           className="flex w-full items-center justify-center gap-3 rounded-xl border border-rim bg-surface-high px-4 py-3 text-sm font-medium"
         >
           <GoogleIcon />
-          Prihlásiť cez Google
+          {t.login.signInWithGoogle}
         </button>
       </div>
     </main>
   );
 }
 
-// 2. Hlavný export stránky, ktorý Next.js očakáva, obalíme do Suspense
 export default function LoginPage() {
   return (
     <Suspense fallback={

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { I18nProvider } from "@/contexts/I18nContext";
 import { PwaInit } from "@/components/PwaInit";
 
 export const metadata: Metadata = {
@@ -40,10 +41,12 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
       </head>
       <body className="antialiased">
-        <AuthProvider>
-          {children}
-          <PwaInit />
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            {children}
+            <PwaInit />
+          </AuthProvider>
+        </I18nProvider>
       </body>
     </html>
   );

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { sk } from "date-fns/locale";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { getAllUsers, updateUserRolesAndStatus } from "@/lib/userService";
 import {
   subscribeToCategories,
@@ -26,59 +26,46 @@ import type { AppUser, UserRole, UserStatus } from "@/types/user";
 import type { Group, Tag } from "@/types/contribution";
 
 const PRESET_COLORS = [
-  // Reds / pinks
   "#EF4444", "#DC2626", "#EC4899", "#DB2777",
-  // Oranges / yellows / gold
   "#F97316", "#EA580C", "#F59E0B", "#D4A843",
-  // Greens
   "#22C55E", "#16A34A", "#5A8F4A", "#059669",
-  // Teals / blues
   "#0D9488", "#0891B2", "#2563EB", "#4A7A9A",
-  // Purples / mauves
   "#7C3AED", "#7A5EA0", "#8B5CF6", "#A855F7",
-  // Mixed / muted
   "#C07830", "#A83030", "#6B9E5E", "#78716C",
 ];
 
-const EMOJI_CATEGORIES: { label: string; emojis: string[] }[] = [
+type EmojiCatKey = "people" | "activities" | "nature" | "food" | "travel" | "culture" | "symbols";
+
+const EMOJI_DATA: { key: EmojiCatKey; emojis: string[] }[] = [
   {
-    label: "Ľudia",
+    key: "people",
     emojis: ["👶","🧒","👦","👧","🧑","👱","🧔","👴","👵","👨‍👩‍👧‍👦","👨‍👩‍👦","👨‍👩‍👧","👪","👫","👬","👭","🤝","🙌","🫂","💪"],
   },
   {
-    label: "Aktivity",
+    key: "activities",
     emojis: ["⚽","🏀","🏈","⚾","🎾","🏐","🎱","🏓","🏸","🥊","🏋️","🤸","🏊","🚴","🎿","🛷","⛷️","🏂","🎯","🎮","🎲","♟️","🎳","🧩"],
   },
   {
-    label: "Príroda",
+    key: "nature",
     emojis: ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐝","🦋","🌸","🌺","🌻","🌹","🍀","🌿","🍃","🌴"],
   },
   {
-    label: "Jedlo",
+    key: "food",
     emojis: ["🍕","🍔","🍟","🌮","🌯","🥗","🍣","🍜","🎂","🍰","🧁","🍩","🍪","🍦","🍫","🍷","🍺","☕","🍵","🧃","🥂","🫙","🍱","🥘"],
   },
   {
-    label: "Cestovanie",
+    key: "travel",
     emojis: ["✈️","🚂","🚢","🚗","🏠","🏡","🏖️","🏔️","⛺","🗺️","🌍","🗼","🏰","⛩️","🎡","🎢","🚀","⛵","🚁","🏕️","🌅","🌄","🗻","🏛️"],
   },
   {
-    label: "Kultúra",
+    key: "culture",
     emojis: ["🎨","🖼️","🎭","🎬","🎤","🎵","🎶","🎸","🎹","🥁","📚","📖","📝","✏️","🔬","🔭","🎓","🏛️","⛪","🕌","🎻","🎺","🎷","🎙️"],
   },
   {
-    label: "Symboly",
+    key: "symbols",
     emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","⭐","🌟","💫","✨","🔥","💎","🏆","🥇","🎉","🎊","🎈","🌈","☀️","🌙","⚡","❄️"],
   },
 ];
-
-const INPUT_CLS =
-  "rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold";
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  admin: "Správca",
-  chronicler: "Kronikár",
-  contributor: "Prispievateľ",
-};
 
 const STATUS_COLOR: Record<UserStatus, "amber" | "green" | "red"> = {
   pending: "amber",
@@ -86,26 +73,22 @@ const STATUS_COLOR: Record<UserStatus, "amber" | "green" | "red"> = {
   blocked: "red",
 };
 
-const STATUS_LABEL: Record<UserStatus, string> = {
-  pending: "Čaká",
-  active: "Aktívny",
-  blocked: "Blokovaný",
-};
+const INPUT_CLS =
+  "rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold";
 
 type Tab = "pouzivatelia" | "skupiny" | "hashtagy";
 
 function AdminContent() {
   const { appUser } = useAuth();
+  const { t, dateFnsLocale } = useI18n();
 
   const [tab, setTab] = useState<Tab>("pouzivatelia");
 
-  // ── Shared data ──────────────────────────────────────────────────────────────
   const [users, setUsers] = useState<AppUser[]>([]);
   const [categories, setCategories] = useState<Group[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ── Users tab ────────────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [editRoles, setEditRoles] = useState<UserRole[]>([]);
@@ -113,7 +96,6 @@ function AdminContent() {
   const [userSaving, setUserSaving] = useState(false);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
-  // ── Categories tab ───────────────────────────────────────────────────────────
   const [catName, setCatName] = useState("");
   const [catColor, setCatColor] = useState(PRESET_COLORS[0]);
   const [catIcon, setCatIcon] = useState("");
@@ -125,16 +107,13 @@ function AdminContent() {
   const [editCatIcon, setEditCatIcon] = useState("");
   const [editCatSaving, setEditCatSaving] = useState(false);
 
-  // ── Tags tab ─────────────────────────────────────────────────────────────────
   const [tagName, setTagName] = useState("");
   const [tagSaving, setTagSaving] = useState(false);
   const [tagAccessUpdating, setTagAccessUpdating] = useState<string | null>(null);
 
-  // ── Shared ───────────────────────────────────────────────────────────────────
   const [accessUpdating, setAccessUpdating] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "cat" | "tag"; id: string; name: string } | null>(null);
 
-  // Derived
   const contributors = users.filter(
     (u) => u.status === "active" && !u.roles.includes("chronicler") && !u.roles.includes("admin")
   );
@@ -147,7 +126,6 @@ function AdminContent() {
     return () => { u1(); u2(); };
   }, []);
 
-  // ── User handlers ─────────────────────────────────────────────────────────────
   async function reloadUsers() {
     setUsers(await getAllUsers());
   }
@@ -171,7 +149,6 @@ function AdminContent() {
     reloadUsers();
   }
 
-  // ── Category handlers ─────────────────────────────────────────────────────────
   async function handleAddCategory(e: React.FormEvent) {
     e.preventDefault();
     if (!catName.trim() || !appUser) return;
@@ -222,7 +199,6 @@ function AdminContent() {
     setAccessUpdating(null);
   }
 
-  // ── Tag handlers ──────────────────────────────────────────────────────────────
   async function handleAddTag(e: React.FormEvent) {
     e.preventDefault();
     if (!tagName.trim() || !appUser) return;
@@ -232,7 +208,6 @@ function AdminContent() {
     setTagSaving(false);
   }
 
-  // ── Delete handler ────────────────────────────────────────────────────────────
   async function handleDelete() {
     if (!deleteTarget) return;
     if (deleteTarget.type === "cat") await deleteCategory(deleteTarget.id);
@@ -240,7 +215,6 @@ function AdminContent() {
     setDeleteTarget(null);
   }
 
-  // ── Filtered users ────────────────────────────────────────────────────────────
   const filteredUsers = users.filter((u) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
@@ -251,9 +225,9 @@ function AdminContent() {
   });
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: "pouzivatelia", label: "Používatelia" },
-    { key: "skupiny", label: "Skupiny" },
-    { key: "hashtagy", label: "Hashtagy" },
+    { key: "pouzivatelia", label: t.admin.tabUsers },
+    { key: "skupiny", label: t.admin.tabGroups },
+    { key: "hashtagy", label: t.admin.tabHashtags },
   ];
 
   return (
@@ -262,26 +236,26 @@ function AdminContent() {
       <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-ink">Správa</h1>
+          <h1 className="text-lg font-semibold text-ink">{t.admin.title}</h1>
           {pending.length > 0 && tab === "pouzivatelia" && (
-            <Badge color="amber">{pending.length} čaká na schválenie</Badge>
+            <Badge color="amber">{t.admin.pendingBadge(pending.length)}</Badge>
           )}
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 rounded-xl bg-surface border border-rim p-1">
-          {TABS.map((t) => (
+          {TABS.map((tabItem) => (
             <button
-              key={t.key}
+              key={tabItem.key}
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={() => setTab(tabItem.key)}
               className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
-                tab === t.key
+                tab === tabItem.key
                   ? "bg-gold text-gold-text shadow-sm"
                   : "text-ink-dim hover:text-ink"
               }`}
             >
-              {t.label}
+              {tabItem.label}
             </button>
           ))}
         </div>
@@ -295,7 +269,7 @@ function AdminContent() {
               </svg>
               <input
                 type="text"
-                placeholder="Hľadať podľa mena alebo emailu…"
+                placeholder={t.admin.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-xl border border-rim bg-surface pl-9 pr-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
@@ -313,7 +287,6 @@ function AdminContent() {
 
                   return (
                     <div key={user.uid} className="rounded-xl border border-rim bg-surface overflow-hidden">
-                      {/* Row */}
                       <div className="flex items-center gap-3 px-4 py-3">
                         {user.photoURL ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -327,9 +300,9 @@ function AdminContent() {
                           <p className="text-sm font-medium text-ink truncate">{user.displayName || "—"}</p>
                           <p className="text-xs text-ink-subtle truncate">{user.email}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-1">
-                            <Badge color={STATUS_COLOR[user.status]}>{STATUS_LABEL[user.status]}</Badge>
+                            <Badge color={STATUS_COLOR[user.status]}>{t.admin.statusLabels[user.status]}</Badge>
                             {user.roles.map((r) => (
-                              <Badge key={r} color="gold">{ROLE_LABELS[r]}</Badge>
+                              <Badge key={r} color="gold">{t.admin.roleLabels[r]}</Badge>
                             ))}
                             {userCats.length > 0 && (
                               <span className="flex items-center gap-1">
@@ -355,15 +328,14 @@ function AdminContent() {
                                 : "border border-rim text-ink-dim hover:bg-surface-high"
                             }`}
                           >
-                            Skupiny
+                            {t.admin.groupsBtn}
                           </button>
                         )}
                         <Button variant="secondary" size="sm" onClick={() => openEdit(user)}>
-                          Upraviť
+                          {t.admin.editBtn}
                         </Button>
                       </div>
 
-                      {/* Category access panel */}
                       {isExpanded && (
                         <div className="border-t border-rim px-3 py-3 space-y-1 max-h-60 overflow-y-auto">
                           {categories.map((cat) => {
@@ -411,7 +383,7 @@ function AdminContent() {
                   );
                 })}
                 {filteredUsers.length === 0 && (
-                  <p className="py-10 text-center text-sm text-ink-subtle">Žiadni užívatelia.</p>
+                  <p className="py-10 text-center text-sm text-ink-subtle">{t.admin.noUsers}</p>
                 )}
               </div>
             )}
@@ -426,15 +398,15 @@ function AdminContent() {
                 <input
                   value={catName}
                   onChange={(e) => setCatName(e.target.value)}
-                  placeholder="Názov skupiny"
+                  placeholder={t.admin.groupNamePlaceholder}
                   className={`flex-1 min-w-36 ${INPUT_CLS}`}
                 />
                 <Button type="submit" size="sm" loading={catSaving} disabled={!catName.trim()}>
-                  Pridať
+                  {t.admin.addBtn}
                 </Button>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-ink-dim">Farba</label>
+                <label className="text-xs font-medium text-ink-dim">{t.admin.colorLabel}</label>
                 <div className="grid grid-cols-12 gap-1.5">
                   {PRESET_COLORS.map((c) => (
                     <button
@@ -450,7 +422,7 @@ function AdminContent() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-ink-dim">Ikona (voliteľné)</label>
+                <label className="text-xs font-medium text-ink-dim">{t.admin.iconLabel}</label>
                 <EmojiPicker selected={catIcon} onSelect={setCatIcon} />
               </div>
               {catName && (
@@ -467,7 +439,7 @@ function AdminContent() {
 
             <div className="space-y-2">
               {categories.length === 0 && (
-                <p className="text-sm text-ink-subtle">Zatiaľ žiadne skupiny.</p>
+                <p className="text-sm text-ink-subtle">{t.admin.noGroups}</p>
               )}
               {categories.map((cat) => {
                 const isExpanded = expandedCatId === cat.id;
@@ -482,12 +454,12 @@ function AdminContent() {
                       )}
                       <span className="flex-1 min-w-0 text-sm font-medium text-ink truncate" style={{ color: cat.color }}>{cat.name}</span>
                       <span className="shrink-0 rounded-full bg-surface-high px-2 py-0.5 text-xs text-ink-subtle">
-                        {accessCount === 0 ? "Nikto" : accessCount === 1 ? "1 používateľ" : `${accessCount} používatelia`}
+                        {t.admin.accessCount(accessCount)}
                       </span>
                       <button
                         onClick={() => openEditCat(cat)}
                         className="shrink-0 rounded-lg p-1.5 text-ink-subtle hover:bg-surface-high hover:text-ink"
-                        aria-label="Upraviť"
+                        aria-label={t.admin.editBtn}
                       >
                         <PencilIcon />
                       </button>
@@ -499,12 +471,12 @@ function AdminContent() {
                             : "border border-rim text-ink-dim hover:bg-surface-high"
                         }`}
                       >
-                        Prístupy
+                        {t.admin.accessesBtn}
                       </button>
                       <button
                         onClick={() => setDeleteTarget({ type: "cat", id: cat.id, name: cat.name })}
                         className="shrink-0 rounded-lg p-1.5 text-ink-subtle hover:bg-danger-dim hover:text-danger"
-                        aria-label="Odstrániť"
+                        aria-label={t.admin.deleteBtn}
                       >
                         <TrashIcon />
                       </button>
@@ -514,7 +486,7 @@ function AdminContent() {
                       <div className="border-t border-rim px-3 py-3 space-y-1 max-h-60 overflow-y-auto">
                         {contributors.length === 0 ? (
                           <p className="text-xs text-ink-subtle py-2">
-                            Žiadni aktívni prispievatelia. Najprv schváľte používateľov na záložke Používatelia.
+                            {t.admin.noActiveContributors}
                           </p>
                         ) : (
                           contributors.map((user) => {
@@ -576,11 +548,11 @@ function AdminContent() {
                 className={`flex-1 ${INPUT_CLS}`}
               />
               <Button type="submit" size="sm" loading={tagSaving} disabled={!tagName.trim()}>
-                Pridať
+                {t.admin.addBtn}
               </Button>
             </form>
             {tags.length === 0 ? (
-              <p className="text-sm text-ink-subtle">Zatiaľ žiadne hashtagy.</p>
+              <p className="text-sm text-ink-subtle">{t.admin.noHashtags}</p>
             ) : (
               <div className="space-y-2">
                 {tags.map((tag) => (
@@ -590,14 +562,14 @@ function AdminContent() {
                       <button
                         onClick={() => setDeleteTarget({ type: "tag", id: tag.id, name: tag.name })}
                         className="shrink-0 rounded-lg p-1.5 text-ink-subtle hover:bg-danger-dim hover:text-danger"
-                        aria-label="Odstrániť"
+                        aria-label={t.admin.deleteBtn}
                       >
                         <TrashIcon />
                       </button>
                     </div>
                     {categories.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 items-center">
-                        <span className="text-xs text-ink-subtle shrink-0">Skupiny:</span>
+                        <span className="text-xs text-ink-subtle shrink-0">{t.admin.groupsFilterLabel}</span>
                         <button
                           type="button"
                           onClick={() => toggleTagCategory(tag, "__all__")}
@@ -608,7 +580,7 @@ function AdminContent() {
                               : "border-rim text-ink-dim hover:border-rim-strong"
                           }`}
                         >
-                          Všetky skupiny
+                          {t.admin.allGroupsLabel}
                         </button>
                         {categories.map((cat) => {
                           const active = tag.categoryIds.includes(cat.id);
@@ -643,18 +615,18 @@ function AdminContent() {
       {/* Edit user modal */}
       <Modal
         open={!!editingUser}
-        title={`Upraviť: ${editingUser?.displayName}`}
+        title={t.admin.editUserTitle(editingUser?.displayName ?? "")}
         onClose={() => setEditingUser(null)}
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setEditingUser(null)}>Zrušiť</Button>
-            <Button size="sm" loading={userSaving} onClick={handleSaveUser}>Uložiť</Button>
+            <Button variant="secondary" size="sm" onClick={() => setEditingUser(null)}>{t.admin.cancelBtn}</Button>
+            <Button size="sm" loading={userSaving} onClick={handleSaveUser}>{t.admin.saveBtn}</Button>
           </>
         }
       >
         <div className="space-y-5">
           <div>
-            <p className="text-sm font-medium text-ink-dim mb-2">Stav účtu</p>
+            <p className="text-sm font-medium text-ink-dim mb-2">{t.admin.accountStatus}</p>
             <div className="flex gap-2">
               {(["pending", "active", "blocked"] as UserStatus[]).map((s) => (
                 <button
@@ -671,14 +643,14 @@ function AdminContent() {
                       : "border-rim text-ink-subtle hover:bg-surface"
                   }`}
                 >
-                  {STATUS_LABEL[s]}
+                  {t.admin.statusLabels[s]}
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <p className="text-sm font-medium text-ink-dim mb-2">Role</p>
+            <p className="text-sm font-medium text-ink-dim mb-2">{t.admin.rolesLabel}</p>
             <div className="space-y-2">
               {(["contributor", "chronicler", "admin"] as UserRole[]).map((role) => (
                 <label
@@ -692,12 +664,8 @@ function AdminContent() {
                     className="h-4 w-4 rounded border-rim bg-surface text-gold focus:ring-gold focus:ring-offset-canvas"
                   />
                   <div>
-                    <p className="text-sm font-medium text-ink">{ROLE_LABELS[role]}</p>
-                    <p className="text-xs text-ink-subtle">
-                      {role === "contributor" && "Pridáva príspevky"}
-                      {role === "chronicler" && "Spracováva a edituje príspevky"}
-                      {role === "admin" && "Spravuje užívateľov a skupiny"}
-                    </p>
+                    <p className="text-sm font-medium text-ink">{t.admin.roleLabels[role]}</p>
+                    <p className="text-xs text-ink-subtle">{t.admin.roleDescriptions[role]}</p>
                   </div>
                 </label>
               ))}
@@ -706,8 +674,8 @@ function AdminContent() {
 
           {editingUser && (
             <div className="rounded-xl bg-canvas border border-rim px-3 py-2 text-xs text-ink-subtle space-y-0.5">
-              <p>UID: {editingUser.uid}</p>
-              <p>Registrovaný: {format(editingUser.createdAt, "d.M.yyyy", { locale: sk })}</p>
+              <p>{t.admin.uidLabel(editingUser.uid)}</p>
+              <p>{t.admin.registeredLabel(format(editingUser.createdAt, "d.M.yyyy", { locale: dateFnsLocale }))}</p>
             </div>
           )}
         </div>
@@ -716,18 +684,18 @@ function AdminContent() {
       {/* Edit category modal */}
       <Modal
         open={editingCat !== null}
-        title="Upraviť skupinu"
+        title={t.admin.editGroupTitle}
         onClose={() => setEditingCat(null)}
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setEditingCat(null)}>Zrušiť</Button>
-            <Button size="sm" loading={editCatSaving} disabled={!editCatName.trim()} onClick={handleSaveCat}>Uložiť</Button>
+            <Button variant="secondary" size="sm" onClick={() => setEditingCat(null)}>{t.admin.cancelBtn}</Button>
+            <Button size="sm" loading={editCatSaving} disabled={!editCatName.trim()} onClick={handleSaveCat}>{t.admin.saveBtn}</Button>
           </>
         }
       >
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-ink-dim">Názov skupiny</label>
+            <label className="text-xs font-medium text-ink-dim">{t.admin.groupNamePlaceholder}</label>
             <input
               value={editCatName}
               onChange={(e) => setEditCatName(e.target.value)}
@@ -737,7 +705,7 @@ function AdminContent() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-medium text-ink-dim">Farba</label>
+            <label className="text-xs font-medium text-ink-dim">{t.admin.colorLabel}</label>
             <div className="grid grid-cols-12 gap-1.5">
               {PRESET_COLORS.map((c) => (
                 <button
@@ -753,7 +721,7 @@ function AdminContent() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-ink-dim">Ikona (voliteľné)</label>
+            <label className="text-xs font-medium text-ink-dim">{t.admin.iconLabel}</label>
             <EmojiPicker selected={editCatIcon} onSelect={setEditCatIcon} />
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-canvas border border-rim px-3 py-2.5">
@@ -763,7 +731,7 @@ function AdminContent() {
               <span className="h-5 w-5 rounded-full shrink-0" style={{ backgroundColor: editCatColor }} />
             )}
             <span className="text-sm font-semibold" style={{ color: editCatColor }}>
-              {editCatName || "Náhľad"}
+              {editCatName || t.admin.previewLabel}
             </span>
           </div>
         </div>
@@ -771,9 +739,9 @@ function AdminContent() {
 
       <ConfirmModal
         open={!!deleteTarget}
-        title="Odstrániť"
-        message={`Naozaj chcete odstrániť "${deleteTarget?.name}"?`}
-        confirmLabel="Odstrániť"
+        title={t.admin.deleteTitle}
+        message={t.admin.deleteConfirm(deleteTarget?.name ?? "")}
+        confirmLabel={t.admin.deleteBtn}
         danger
         onConfirm={handleDelete}
         onClose={() => setDeleteTarget(null)}
@@ -791,11 +759,12 @@ export default function AdminPage() {
 }
 
 function EmojiPicker({ selected, onSelect }: { selected: string; onSelect: (v: string) => void }) {
+  const { t } = useI18n();
   const [activeCat, setActiveCat] = useState(0);
   return (
     <div className="space-y-2">
       <div className="flex gap-1 overflow-x-auto pb-0.5">
-        {EMOJI_CATEGORIES.map((cat, i) => (
+        {EMOJI_DATA.map((cat, i) => (
           <button
             key={i}
             type="button"
@@ -804,7 +773,7 @@ function EmojiPicker({ selected, onSelect }: { selected: string; onSelect: (v: s
               activeCat === i ? "bg-gold text-gold-text" : "text-ink-dim hover:bg-surface-high"
             }`}
           >
-            {cat.label}
+            {t.admin.emojiCategoryLabels[cat.key]}
           </button>
         ))}
       </div>
@@ -812,14 +781,14 @@ function EmojiPicker({ selected, onSelect }: { selected: string; onSelect: (v: s
         <button
           type="button"
           onClick={() => onSelect("")}
-          title="Bez ikony"
+          title={t.admin.iconLabel}
           className={`flex items-center justify-center h-8 w-8 rounded-lg text-xs text-ink-subtle transition-colors ${
             !selected ? "bg-gold-dim ring-1 ring-gold" : "hover:bg-surface-high"
           }`}
         >
           ✕
         </button>
-        {EMOJI_CATEGORIES[activeCat].emojis.map((emoji) => (
+        {EMOJI_DATA[activeCat].emojis.map((emoji) => (
           <button
             key={emoji}
             type="button"

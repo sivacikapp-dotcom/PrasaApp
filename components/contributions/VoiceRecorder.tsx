@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface VoiceRecorderProps {
   existingUrl?: string | null;
@@ -19,6 +20,7 @@ function fmt(secs: number) {
 }
 
 export function VoiceRecorder({ existingUrl, maxSeconds, onRecorded, onDelete }: VoiceRecorderProps) {
+  const { t } = useI18n();
   const [state, setState] = useState<RecState>(existingUrl ? "done" : "idle");
   const [seconds, setSeconds] = useState(0);
   const [blobUrl, setBlobUrl] = useState<string | null>(existingUrl ?? null);
@@ -74,7 +76,7 @@ export function VoiceRecorder({ existingUrl, maxSeconds, onRecorded, onDelete }:
         }
       }, 1000);
     } catch {
-      setError("Nepodarilo sa získať prístup k mikrofónu.");
+      setError(t.components.micError);
     }
   }
 
@@ -102,7 +104,7 @@ export function VoiceRecorder({ existingUrl, maxSeconds, onRecorded, onDelete }:
       {state === "idle" && (
         <div className="flex items-center gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={startRecording}>
-            <MicIcon /> Nahrať hlasovú správu
+            <MicIcon /> {t.components.recordVoice}
           </Button>
           <span className="text-xs text-ink-subtle">max {fmt(maxSeconds)}</span>
         </div>
@@ -112,7 +114,7 @@ export function VoiceRecorder({ existingUrl, maxSeconds, onRecorded, onDelete }:
         <div className="flex items-center gap-3">
           <span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-danger animate-pulse" />
           <span className={`text-sm font-mono tabular-nums ${timeColorCls}`}>{fmt(remaining)}</span>
-          <Button type="button" variant="danger" size="sm" onClick={stopRecording}>Zastaviť</Button>
+          <Button type="button" variant="danger" size="sm" onClick={stopRecording}>{t.components.stopRecording}</Button>
         </div>
       )}
 
@@ -120,7 +122,7 @@ export function VoiceRecorder({ existingUrl, maxSeconds, onRecorded, onDelete }:
         <div className="flex items-center gap-3 rounded-xl bg-surface border border-rim px-3 py-2">
           <audio src={blobUrl} controls className="h-8 flex-1 min-w-0" />
           <button type="button" onClick={deleteRecording}
-            className="shrink-0 text-ink-subtle hover:text-danger" aria-label="Odstrániť nahrávku">
+            className="shrink-0 text-ink-subtle hover:text-danger" aria-label={t.components.deleteRecording}>
             <TrashIcon />
           </button>
         </div>

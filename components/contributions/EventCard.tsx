@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { format } from "date-fns";
-import { sk } from "date-fns/locale";
+import { format, type Locale } from "date-fns";
 import { ConfirmModal } from "@/components/ui/Modal";
+import { useI18n } from "@/contexts/I18nContext";
 import { deleteEvent } from "@/lib/eventService";
 import type { ChronicleEvent, Contribution, Group } from "@/types/contribution";
 
@@ -15,16 +15,16 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, contributions, categories = [] }: EventCardProps) {
+  const { t, dateFnsLocale } = useI18n();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const members = contributions.filter((c) => event.contributionIds.includes(c.id));
   const eventCategory = categories.find((c) => c.id === event.categoryId) ?? null;
 
-  // Photo count from all included contributions
   const photoCount = members.reduce((sum, c) => sum + c.photoUrls.length, 0);
 
-  const dateLabel = buildDateLabel(event, members);
+  const dateLabel = buildDateLabel(event, members, dateFnsLocale);
 
   async function handleDelete() {
     setDeleting(true);
@@ -66,8 +66,8 @@ export function EventCard({ event, contributions, categories = [] }: EventCardPr
             <p className="mt-1 text-xs text-ink-dim line-clamp-2">{event.description}</p>
           )}
           <div className="mt-1.5 flex items-center gap-2">
-            <Chip label={`${event.contributionIds.length} príspevkov`} />
-            {photoCount > 0 && <Chip label={`${photoCount} fotografií`} />}
+            <Chip label={t.chronicler.contributionPluralCount(event.contributionIds.length)} />
+            {photoCount > 0 && <Chip label={t.components.photoCount(photoCount)} />}
           </div>
         </Link>
 
@@ -76,7 +76,7 @@ export function EventCard({ event, contributions, categories = [] }: EventCardPr
           <Link
             href={`/chronicler/events/${event.id}`}
             className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-high hover:text-ink"
-            title="Upraviť udalosť"
+            title={t.eventDetail.editEvent}
           >
             <EditIcon />
           </Link>
@@ -84,7 +84,7 @@ export function EventCard({ event, contributions, categories = [] }: EventCardPr
             onClick={() => setDeleteOpen(true)}
             disabled={deleting}
             className="rounded-lg p-1.5 text-ink-subtle hover:bg-danger-dim hover:text-danger disabled:opacity-40"
-            title="Odstrániť udalosť"
+            title={t.eventDetail.deleteTooltip}
           >
             <TrashIcon />
           </button>
@@ -93,9 +93,9 @@ export function EventCard({ event, contributions, categories = [] }: EventCardPr
 
       <ConfirmModal
         open={deleteOpen}
-        title="Odstrániť udalosť"
-        message={`Naozaj odstrániť udalosť „${event.title}"? Príspevky zostanú zachované.`}
-        confirmLabel="Odstrániť udalosť"
+        title={t.eventDetail.deleteTitle}
+        message={t.eventDetail.deleteMessage(event.title)}
+        confirmLabel={t.eventDetail.deleteConfirm}
         danger
         onConfirm={handleDelete}
         onClose={() => setDeleteOpen(false)}
@@ -104,20 +104,20 @@ export function EventCard({ event, contributions, categories = [] }: EventCardPr
   );
 }
 
-function buildDateLabel(event: ChronicleEvent, members: Contribution[]): string | null {
+function buildDateLabel(event: ChronicleEvent, members: Contribution[], locale: Locale): string | null {
   if (event.dateFrom || event.dateTo) {
     if (event.dateFrom && event.dateTo) {
-      return `${format(event.dateFrom, "d. M.", { locale: sk })} – ${format(event.dateTo, "d. M. yyyy", { locale: sk })}`;
+      return `${format(event.dateFrom, "d. M.", { locale })} – ${format(event.dateTo, "d. M. yyyy", { locale })}`;
     }
-    if (event.dateFrom) return format(event.dateFrom, "d. M. yyyy", { locale: sk });
-    if (event.dateTo) return format(event.dateTo, "d. M. yyyy", { locale: sk });
+    if (event.dateFrom) return format(event.dateFrom, "d. M. yyyy", { locale });
+    if (event.dateTo) return format(event.dateTo, "d. M. yyyy", { locale });
   }
   if (members.length === 0) return null;
   const dates = members
     .map((c) => c.verifiedEventDate ?? c.eventDate)
     .sort((a, b) => a.getTime() - b.getTime());
-  if (dates.length === 1) return format(dates[0], "d. M. yyyy", { locale: sk });
-  return `${format(dates[0], "d. M.", { locale: sk })} – ${format(dates[dates.length - 1], "d. M. yyyy", { locale: sk })}`;
+  if (dates.length === 1) return format(dates[0], "d. M. yyyy", { locale });
+  return `${format(dates[0], "d. M.", { locale })} – ${format(dates[dates.length - 1], "d. M. yyyy", { locale })}`;
 }
 
 function Chip({ label }: { label: string }) {

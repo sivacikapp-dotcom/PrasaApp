@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { useLocation } from "@/hooks/useLocation";
 import { createContribution, updateContribution } from "@/lib/contributionService";
 import { uploadPhoto, uploadVoice, uploadVideo } from "@/lib/storageService";
@@ -25,7 +26,6 @@ function pickAudioMimeType(): string {
   return "";
 }
 
-
 function fmtTime(secs: number) {
   const m = Math.floor(secs / 60).toString().padStart(2, "0");
   const s = (secs % 60).toString().padStart(2, "0");
@@ -34,16 +34,15 @@ function fmtTime(secs: number) {
 
 export function QuickCapture() {
   const { appUser } = useAuth();
+  const { t } = useI18n();
   const { state: locState, capture: captureLocation } = useLocation();
 
   const [captureStatus, setCaptureStatus] = useState<CaptureStatus>("idle");
   const [accessibleGroups, setAccessibleGroups] = useState<Group[]>([]);
 
-  // Voice state
   const [voiceReady, setVoiceReady] = useState(false);
   const [voiceRecording, setVoiceRecording] = useState(false);
   const [voiceSeconds, setVoiceSeconds] = useState(0);
-
 
   const cameraRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
@@ -125,8 +124,6 @@ export function QuickCapture() {
     }
   }
 
-  // ── Voice ────────────────────────────────────────────────────────────────
-
   async function startVoice() {
     if (!appUser) return;
     setVoiceReady(false);
@@ -142,7 +139,7 @@ export function QuickCapture() {
         if (e.data.size > 0) voiceChunksRef.current.push(e.data);
       };
       mr.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
+        stream.getTracks().forEach((track) => track.stop());
         if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
         setVoiceRecording(false);
         setCaptureStatus("uploading");
@@ -259,7 +256,7 @@ export function QuickCapture() {
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-          Rýchle zachytenie
+          {t.quickCapture.title}
         </span>
         <GpsIndicator status={locState.status} onRetry={captureLocation} />
       </div>
@@ -275,7 +272,7 @@ export function QuickCapture() {
           className="flex items-center gap-2 rounded-xl bg-gold px-4 py-2.5 text-sm font-semibold text-gold-text shadow-sm active:scale-95 transition-transform disabled:opacity-50"
         >
           <CameraIcon />
-          Odfotiť
+          {t.quickCapture.photo}
         </button>
         <input
           ref={cameraRef}
@@ -295,7 +292,7 @@ export function QuickCapture() {
             className="flex items-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
           >
             <MicIcon />
-            Nahrať hlas
+            {t.quickCapture.voiceReady}
           </button>
         )}
         {voiceReady && !voiceRecording && (
@@ -306,14 +303,14 @@ export function QuickCapture() {
               className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-ink active:scale-95 transition-transform"
             >
               <span className="h-2 w-2 rounded-full bg-ink" />
-              Spustiť nahrávanie
+              {t.quickCapture.voiceStart}
             </button>
             <button
               type="button"
               onClick={() => setVoiceReady(false)}
               className="flex items-center gap-2 rounded-xl border border-rim px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform"
             >
-              Zrušiť
+              {t.quickCapture.voiceCancel}
             </button>
           </>
         )}
@@ -324,7 +321,7 @@ export function QuickCapture() {
             className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-ink active:scale-95 transition-transform"
           >
             <span className="h-2 w-2 rounded-full bg-ink animate-pulse" />
-            {fmtTime(voiceSeconds)} – Zastaviť
+            {t.quickCapture.voiceStop(fmtTime(voiceSeconds))}
           </button>
         )}
 
@@ -336,7 +333,7 @@ export function QuickCapture() {
           className="flex items-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
         >
           <VideoIcon />
-          Nahrať video
+          {t.quickCapture.video}
         </button>
         <input
           ref={videoRef}
@@ -350,26 +347,27 @@ export function QuickCapture() {
 
       {/* Status feedback */}
       {captureStatus === "uploading" && (
-        <p className="mt-2.5 text-xs text-ink-subtle">Nahrávam do Kroniky…</p>
+        <p className="mt-2.5 text-xs text-ink-subtle">{t.quickCapture.statusUploading}</p>
       )}
       {captureStatus === "success" && (
-        <p className="mt-2.5 text-xs text-success font-medium">✓ Príspevok uložený</p>
+        <p className="mt-2.5 text-xs text-success font-medium">{t.quickCapture.statusSuccess}</p>
       )}
       {captureStatus === "offline" && (
-        <p className="mt-2.5 text-xs text-gold font-medium">☁ Uložené lokálne – odošle sa po obnovení spojenia</p>
+        <p className="mt-2.5 text-xs text-gold font-medium">{t.quickCapture.statusOffline}</p>
       )}
       {captureStatus === "error" && (
-        <p className="mt-2.5 text-xs text-danger">Chyba pri ukladaní. Skúste znova.</p>
+        <p className="mt-2.5 text-xs text-danger">{t.quickCapture.statusError}</p>
       )}
     </div>
   );
 }
 
 function GpsIndicator({ status, onRetry }: { status: string; onRetry: () => void }) {
+  const { t } = useI18n();
   if (status === "ok") return <span className="flex items-center gap-1 text-xs text-success"><PinIcon /> GPS</span>;
   if (status === "loading") return <span className="text-xs text-ink-subtle">GPS…</span>;
-  if (status === "denied") return <span className="text-xs text-ink-subtle">GPS nedostupné</span>;
-  return <button onClick={onRetry} className="text-xs text-gold hover:underline">Zachytiť GPS</button>;
+  if (status === "denied") return <span className="text-xs text-ink-subtle">{t.quickCapture.gpsUnavailable}</span>;
+  return <button onClick={onRetry} className="text-xs text-gold hover:underline">{t.quickCapture.gpsCaptureBtn}</button>;
 }
 
 function CameraIcon() {

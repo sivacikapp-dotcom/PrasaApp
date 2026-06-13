@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { sk } from "date-fns/locale";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
 import { Badge } from "@/components/ui/Badge";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { getContribution, deleteContribution } from "@/lib/contributionService";
 import { ConfirmModal } from "@/components/ui/Modal";
 import type { Contribution } from "@/types/contribution";
@@ -17,6 +17,7 @@ function ContributionDetailContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { appUser } = useAuth();
+  const { t, dateFnsLocale } = useI18n();
   const [contribution, setContribution] = useState<Contribution | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -33,7 +34,7 @@ function ContributionDetailContent() {
   }
 
   if (loading) return <><NavBar /><PageSpinner /></>;
-  if (!contribution) return <><NavBar /><div className="p-6 text-ink-dim">Príspevok neexistuje.</div></>;
+  if (!contribution) return <><NavBar /><div className="p-6 text-ink-dim">{t.contribCard.notFound}</div></>;
 
   const c = contribution;
   const isOwner = c.contributorId === appUser?.uid;
@@ -51,21 +52,21 @@ function ContributionDetailContent() {
           </button>
           <div className="flex-1">
             <p className="text-xs font-medium text-gold uppercase tracking-wide">
-              {format(displayDate, "d. MMMM yyyy", { locale: sk })}
+              {format(displayDate, "d. MMMM yyyy", { locale: dateFnsLocale })}
             </p>
             <p className="text-xs text-ink-subtle">{c.contributorName}</p>
           </div>
           <Badge color={c.status === "processed" ? "green" : "amber"}>
-            {c.status === "processed" ? "Spracovaný" : "Čaká"}
+            {c.status === "processed" ? t.components.statusProcessed : t.components.statusPending}
           </Badge>
         </div>
 
         {c.texts.length > 0 && (
           <section>
-            <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Príspevok</h2>
+            <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.contribCard.text}</h2>
             <div className="space-y-2">
-              {c.texts.map((t, i) => (
-                <p key={i} className="text-sm text-ink whitespace-pre-wrap">{t}</p>
+              {c.texts.map((text, i) => (
+                <p key={i} className="text-sm text-ink whitespace-pre-wrap">{text}</p>
               ))}
             </div>
           </section>
@@ -73,7 +74,7 @@ function ContributionDetailContent() {
 
         {allPhotos.length > 0 && (
           <section>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Fotografie</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.contribCard.photos}</h2>
             <div className="grid grid-cols-2 gap-2">
               {allPhotos.map((url) => (
                 <div key={url} className="relative aspect-[4/3] rounded-xl overflow-hidden bg-surface">
@@ -87,7 +88,7 @@ function ContributionDetailContent() {
 
         {c.videoUrls?.length > 0 && (
           <section>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Videá</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.contribCard.videos}</h2>
             <div className="space-y-3">
               {c.videoUrls.map((url, i) => (
                 <div key={url} className="rounded-xl overflow-hidden border border-rim bg-surface">
@@ -98,7 +99,7 @@ function ContributionDetailContent() {
                     className="w-full max-h-72 bg-black object-contain"
                   />
                   {c.videoUrls.length > 1 && (
-                    <p className="px-3 py-1.5 text-xs text-ink-subtle">Video {i + 1}</p>
+                    <p className="px-3 py-1.5 text-xs text-ink-subtle">{t.contribCard.videoLabel(i)}</p>
                   )}
                 </div>
               ))}
@@ -108,18 +109,18 @@ function ContributionDetailContent() {
 
         {(c.voices.length > 0 || c.chroniclerVoiceUrl) && (
           <section>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Hlasové správy</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.contribCard.voices}</h2>
             <div className="space-y-2">
               {c.voices.map((v, i) => (
                 <div key={v.url} className="rounded-xl bg-surface border border-rim p-3">
-                  <p className="mb-1.5 text-xs text-ink-subtle">{c.contributorName}{c.voices.length > 1 ? ` · správa ${i + 1}` : ""}</p>
+                  <p className="mb-1.5 text-xs text-ink-subtle">{t.contribCard.voiceLabel(c.contributorName, i, c.voices.length)}</p>
                   <audio src={v.url} controls className="w-full h-8" />
                   {v.transcript && <p className="mt-2 text-xs text-ink-dim italic">"{v.transcript}"</p>}
                 </div>
               ))}
               {c.chroniclerVoiceUrl && (
                 <div className="rounded-xl bg-gold-dim border border-gold/20 p-3">
-                  <p className="mb-1.5 text-xs text-gold/70">Kronikár</p>
+                  <p className="mb-1.5 text-xs text-gold/70">{t.contribCard.chroniclerLabel}</p>
                   <audio src={c.chroniclerVoiceUrl} controls className="w-full h-8" />
                   {c.chroniclerVoiceTranscript && <p className="mt-2 text-xs text-gold/70 italic">"{c.chroniclerVoiceTranscript}"</p>}
                 </div>
@@ -130,14 +131,14 @@ function ContributionDetailContent() {
 
         {c.chroniclerText && (
           <section>
-            <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Poznámka kronikára</h2>
+            <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.contribCard.chroniclerNote}</h2>
             <p className="text-sm text-gold/80 whitespace-pre-wrap border-l-2 border-gold/40 pl-3">{c.chroniclerText}</p>
           </section>
         )}
 
         {c.location && (
           <section>
-            <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-subtle">Lokalita</h2>
+            <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.contribCard.location}</h2>
             <a
               href={`https://maps.google.com/?q=${c.location.latitude},${c.location.longitude}`}
               target="_blank" rel="noopener noreferrer"
@@ -150,7 +151,7 @@ function ContributionDetailContent() {
         )}
 
         <footer className="text-xs text-ink-subtle border-t border-rim pt-3">
-          Zaznamenané: {format(c.recordedAt, "d.M.yyyy HH:mm", { locale: sk })}
+          {t.contribCard.recordedAt(format(c.recordedAt, "d.M.yyyy HH:mm", { locale: dateFnsLocale }))}
         </footer>
 
         {isOwner && c.status === "pending" && (
@@ -159,11 +160,11 @@ function ContributionDetailContent() {
               onClick={() => setDeleteOpen(true)}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-danger/40 bg-surface py-3 text-sm font-semibold text-danger hover:bg-danger/10"
             >
-              Vymazať
+              {t.contribCard.deleteBtn}
             </button>
             <a href={`/dashboard/${c.id}/edit`}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gold py-3 text-sm font-semibold text-gold-text shadow hover:bg-gold-hover">
-              Upraviť
+              {t.contribCard.editBtn}
             </a>
           </div>
         )}
@@ -171,9 +172,9 @@ function ContributionDetailContent() {
 
       <ConfirmModal
         open={deleteOpen}
-        title="Vymazať príspevok"
-        message="Naozaj chcete vymazať tento príspevok? Akcia je nevratná."
-        confirmLabel={deleting ? "Mazám…" : "Vymazať"}
+        title={t.contribCard.deleteTitle}
+        message={t.contribCard.deleteMessage}
+        confirmLabel={deleting ? t.contribCard.deleting : t.contribCard.deleteBtn}
         danger
         onConfirm={handleDelete}
         onClose={() => setDeleteOpen(false)}

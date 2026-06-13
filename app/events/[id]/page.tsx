@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { format } from "date-fns";
-import { sk } from "date-fns/locale";
+import { format, type Locale } from "date-fns";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import Link from "next/link";
 import { getEvent } from "@/lib/eventService";
 import { getContribution } from "@/lib/contributionService";
@@ -66,6 +66,7 @@ function buildEntities(contributions: Contribution[], entityOrder: string[]): En
 function EventDetailContent() {
   const { id } = useParams<{ id: string }>();
   const { appUser } = useAuth();
+  const { t, dateFnsLocale } = useI18n();
   const router = useRouter();
 
   const [event, setEvent] = useState<ChronicleEvent | null>(null);
@@ -120,10 +121,10 @@ function EventDetailContent() {
         <NavBar />
         <div className="mx-auto max-w-2xl px-4 py-16 text-center space-y-2">
           <p className="text-sm font-medium text-ink-dim">
-            {denied ? "Nemáte prístup k tejto udalosti." : "Udalosť neexistuje."}
+            {denied ? t.eventDetail.accessDenied : t.eventDetail.notFound}
           </p>
           <button onClick={() => router.push("/events")} className="text-sm text-gold hover:underline">
-            Späť na udalosti
+            {t.eventDetail.backToEvents}
           </button>
         </div>
       </>
@@ -133,7 +134,7 @@ function EventDetailContent() {
   const hiddenSet = new Set(event.hiddenItems);
   const allEntities = buildEntities(contributions, event.entityOrder ?? []);
   const visibleEntities = allEntities.filter((e) => !hiddenSet.has(e.key));
-  const dateLabel = buildDateLabel(event);
+  const dateLabel = buildDateLabel(event, dateFnsLocale);
 
   return (
     <>
@@ -151,7 +152,7 @@ function EventDetailContent() {
                 href={`/events/${id}/edit`}
                 className="mt-0.5 inline-flex items-center gap-1 text-xs text-gold hover:underline"
               >
-                <EditSmallIcon /> Upraviť udalosť
+                <EditSmallIcon /> {t.eventDetail.editEvent}
               </Link>
             )}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
@@ -178,7 +179,7 @@ function EventDetailContent() {
         {/* Entity narrative */}
         {visibleEntities.length === 0 ? (
           <div className="rounded-xl border border-rim py-12 text-center">
-            <p className="text-sm text-ink-subtle">Udalosť zatiaľ neobsahuje obsah.</p>
+            <p className="text-sm text-ink-subtle">{t.eventDetail.noContent}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -186,8 +187,8 @@ function EventDetailContent() {
               if (type === "text") {
                 return (
                   <div key={key} className="space-y-1.5">
-                    {c.texts.map((t, ti) => (
-                      <p key={ti} className="text-sm text-ink leading-relaxed whitespace-pre-wrap">{t}</p>
+                    {c.texts.map((text, ti) => (
+                      <p key={ti} className="text-sm text-ink leading-relaxed whitespace-pre-wrap">{text}</p>
                     ))}
                   </div>
                 );
@@ -249,12 +250,12 @@ function EventDetailContent() {
   );
 }
 
-function buildDateLabel(ev: ChronicleEvent): string | null {
+function buildDateLabel(ev: ChronicleEvent, locale: Locale): string | null {
   if (ev.dateFrom && ev.dateTo) {
-    return `${format(ev.dateFrom, "d. M.", { locale: sk })} – ${format(ev.dateTo, "d. M. yyyy", { locale: sk })}`;
+    return `${format(ev.dateFrom, "d. M.", { locale })} – ${format(ev.dateTo, "d. M. yyyy", { locale })}`;
   }
-  if (ev.dateFrom) return format(ev.dateFrom, "d. M. yyyy", { locale: sk });
-  if (ev.dateTo) return format(ev.dateTo, "d. M. yyyy", { locale: sk });
+  if (ev.dateFrom) return format(ev.dateFrom, "d. M. yyyy", { locale });
+  if (ev.dateTo) return format(ev.dateTo, "d. M. yyyy", { locale });
   return null;
 }
 

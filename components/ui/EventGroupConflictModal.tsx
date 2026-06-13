@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface EventGroupConflictModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ export function EventGroupConflictModal({
   onAddCompatibleOnly,
   onCancel,
 }: EventGroupConflictModalProps) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
 
   async function run(fn: () => Promise<void>) {
@@ -55,27 +57,17 @@ export function EventGroupConflictModal({
             <WarningIcon />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-ink">Nesúlad skupín</h2>
+            <h2 className="text-sm font-semibold text-ink">{t.eventGroupConflict.title}</h2>
             <p className="mt-1 text-xs text-ink-dim leading-relaxed">
-              {isSingle ? (
-                <>
-                  Príspevok je v skupine{" "}
-                  <strong className="text-ink">„{contribGroupName}"</strong>, no udalosť má skupinu{" "}
-                  <strong className="text-ink">„{eventGroupName}"</strong>.
-                  {" "}Vyberte, ako chcete nesúlad vyriešiť.
-                </>
-              ) : (
-                <>
-                  {conflictingCount}{" "}
-                  {conflictingCount === 1 ? "príspevok má" : conflictingCount < 5 ? "príspevky majú" : "príspevkov má"}{" "}
-                  inú skupinu ako udalosť{" "}
-                  <strong className="text-ink">(„{eventGroupName}")</strong>.
-                  {compatibleCount > 0 && (
-                    <> {compatibleCount}{" "}
-                    {compatibleCount === 1 ? "príspevok je kompatibilný" : compatibleCount < 5 ? "príspevky sú kompatibilné" : "príspevkov je kompatibilných"}.</>
-                  )}
-                </>
-              )}
+              {isSingle
+                ? t.eventGroupConflict.singleDesc(contribGroupName ?? "", eventGroupName)
+                : (
+                  <>
+                    {t.eventGroupConflict.batchConflicting(conflictingCount, eventGroupName)}
+                    {compatibleCount > 0 && t.eventGroupConflict.batchCompatible(compatibleCount)}
+                  </>
+                )
+              }
             </p>
           </div>
         </div>
@@ -84,18 +76,17 @@ export function EventGroupConflictModal({
         <div className="space-y-2">
 
           {/* Single mode: change event's group */}
-          {isSingle && onChangeEvent && (
+          {isSingle && onChangeEvent && contribGroupName && (
             <button
               onClick={() => run(onChangeEvent)}
               disabled={busy}
               className="w-full rounded-xl border border-rim bg-surface-high px-4 py-3 text-left hover:bg-surface-high/80 disabled:opacity-50"
             >
               <p className="text-sm font-semibold text-ink">
-                Zmeniť skupinu udalosti na{" "}
-                <span className="text-gold">„{contribGroupName}"</span>
+                {t.eventGroupConflict.changeEventTitle(contribGroupName)}
               </p>
               <p className="mt-0.5 text-xs text-ink-dim">
-                Skupina udalosti sa zmení, príspevok sa pridá bez úpravy vlastných skupín.
+                {t.eventGroupConflict.changeEventDesc}
               </p>
             </button>
           )}
@@ -107,16 +98,10 @@ export function EventGroupConflictModal({
             className="w-full rounded-xl border border-gold bg-gold-dim px-4 py-3 text-left hover:bg-gold/20 disabled:opacity-50"
           >
             <p className="text-sm font-semibold text-gold">
-              {isSingle
-                ? <>Prepísať skupiny príspevku na <span className="font-normal">„{eventGroupName}"</span></>
-                : <>Prepísať skupiny {conflictingCount === 1 ? "príspevku" : `${conflictingCount} príspevkov`} na <span className="font-normal">„{eventGroupName}"</span></>
-              }
+              {t.eventGroupConflict.overwriteTitle(isSingle ? 1 : conflictingCount, eventGroupName)}
             </p>
             <p className="mt-0.5 text-xs text-ink-dim">
-              {isSingle
-                ? `Skupiny príspevku sa nastavia na „${eventGroupName}" a príspevok sa pridá do udalosti.`
-                : `Skupiny ${conflictingCount === 1 ? "príspevku" : `${conflictingCount} príspevkov`} sa nastavia na „${eventGroupName}" a všetky sa pridajú do udalosti.`
-              }
+              {t.eventGroupConflict.overwriteDesc(isSingle ? 1 : conflictingCount, eventGroupName)}
             </p>
           </button>
 
@@ -128,12 +113,10 @@ export function EventGroupConflictModal({
               className="w-full rounded-xl border border-rim px-4 py-3 text-left hover:bg-surface-high disabled:opacity-40"
             >
               <p className="text-sm font-semibold text-ink">
-                Pridať iba kompatibilné{compatibleCount > 0 ? ` (${compatibleCount})` : ""}
+                {t.eventGroupConflict.addCompatibleTitle(compatibleCount)}
               </p>
               <p className="mt-0.5 text-xs text-ink-dim">
-                {compatibleCount > 0
-                  ? `${conflictingCount} ${conflictingCount === 1 ? "príspevok" : "príspevkov"} s inou skupinou sa nepridá.`
-                  : "Žiadne kompatibilné príspevky na pridanie."}
+                {t.eventGroupConflict.addCompatibleDesc(conflictingCount)}
               </p>
             </button>
           )}
@@ -144,7 +127,7 @@ export function EventGroupConflictModal({
           disabled={busy}
           className="w-full rounded-xl border border-rim py-2 text-sm text-ink-dim hover:bg-surface-high"
         >
-          Zrušiť
+          {t.eventGroupConflict.cancelBtn}
         </button>
       </div>
     </div>

@@ -3,8 +3,8 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { sk } from "date-fns/locale";
 import { Button } from "@/components/ui/Button";
+import { useI18n } from "@/contexts/I18nContext";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { ContributionPickerModal } from "@/components/ui/ContributionPickerModal";
 import { GroupConflictModal } from "@/components/ui/GroupConflictModal";
@@ -27,6 +27,7 @@ interface EventGroupCardProps {
 }
 
 export function EventGroupCard({ group, contributions, events = [], categories = [], onCreateEvent }: EventGroupCardProps) {
+  const { t, dateFnsLocale } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [newTitle, setNewTitle] = useState(group.title);
@@ -87,7 +88,7 @@ export function EventGroupCard({ group, contributions, events = [], categories =
         <button
           onClick={() => setExpanded((v) => !v)}
           className="shrink-0"
-          aria-label={expanded ? "Zbaliť" : "Rozbaliť"}
+          aria-label={expanded ? t.eventGroupCard.collapse : t.eventGroupCard.expand}
         >
           <ChevronIcon expanded={expanded} />
         </button>
@@ -146,14 +147,14 @@ export function EventGroupCard({ group, contributions, events = [], categories =
             <button
               onClick={startRename}
               className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-high hover:text-ink"
-              title="Premenovať"
+              title={t.eventGroupCard.rename}
             >
               <PenIcon />
             </button>
             <button
               onClick={() => setAddOpen(true)}
               className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-high hover:text-ink"
-              title="Pridať príspevky do skupiny"
+              title={t.eventGroupCard.addContribs}
             >
               <PlusIcon />
             </button>
@@ -161,7 +162,7 @@ export function EventGroupCard({ group, contributions, events = [], categories =
               onClick={() => onCreateEvent(group.contributionIds)}
               disabled={group.contributionIds.length === 0}
               className="rounded-lg p-1.5 text-ink-subtle hover:bg-gold-dim hover:text-gold disabled:opacity-30"
-              title="Vytvoriť udalosť z tejto skupiny"
+              title={t.eventGroupCard.createEvent}
             >
               <EventIcon />
             </button>
@@ -169,7 +170,7 @@ export function EventGroupCard({ group, contributions, events = [], categories =
               onClick={() => setDeleteOpen(true)}
               disabled={deleting}
               className="rounded-lg p-1.5 text-ink-subtle hover:bg-danger-dim hover:text-danger disabled:opacity-40"
-              title="Zrušiť skupinu"
+              title={t.eventGroupCard.deleteGroup}
             >
               <TrashIcon />
             </button>
@@ -181,7 +182,7 @@ export function EventGroupCard({ group, contributions, events = [], categories =
       {expanded && (
         <div className="border-t border-rim divide-y divide-rim">
           {members.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-ink-subtle">Skupina je prázdna.</p>
+            <p className="px-4 py-3 text-sm text-ink-subtle">{t.eventGroupCard.emptyGroup}</p>
           ) : (
             members.map((c) => (
               <div
@@ -190,23 +191,23 @@ export function EventGroupCard({ group, contributions, events = [], categories =
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-gold">
-                    {format(c.verifiedEventDate ?? c.eventDate, "d. M. yyyy", { locale: sk })}
+                    {format(c.verifiedEventDate ?? c.eventDate, "d. M. yyyy", { locale: dateFnsLocale })}
                   </p>
-                  <p className="text-sm text-ink truncate">{c.texts[0] || "(bez textu)"}</p>
+                  <p className="text-sm text-ink truncate">{c.texts[0] || t.eventGroupCard.noText}</p>
                   <p className="text-xs text-ink-subtle">{c.contributorName}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Link
                     href={`/chronicler/${c.id}`}
                     className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface hover:text-ink"
-                    title="Otvoriť príspevok"
+                    title={t.eventGroupCard.openContrib}
                   >
                     <ExternalIcon />
                   </Link>
                   <button
                     onClick={() => handleRemoveMember(c.id)}
                     className="rounded-lg p-1.5 text-ink-subtle hover:bg-danger-dim hover:text-danger"
-                    title="Odstrániť zo skupiny"
+                    title={t.eventGroupCard.removeFromGroup}
                   >
                     <UnlinkIcon />
                   </button>
@@ -219,9 +220,9 @@ export function EventGroupCard({ group, contributions, events = [], categories =
 
       <ConfirmModal
         open={deleteOpen}
-        title="Zrušiť skupinu"
-        message={`Naozaj zrušiť skupinu „${group.title}"? Príspevky zostanú zachované.`}
-        confirmLabel="Zrušiť skupinu"
+        title={t.eventGroupCard.deleteTitle}
+        message={t.eventGroupCard.deleteMessage(group.title)}
+        confirmLabel={t.eventGroupCard.deleteConfirm}
         danger
         onConfirm={handleDelete}
         onClose={() => setDeleteOpen(false)}
@@ -229,7 +230,7 @@ export function EventGroupCard({ group, contributions, events = [], categories =
 
       <ContributionPickerModal
         open={addOpen}
-        title={`Pridať príspevky do „${group.title}"`}
+        title={t.eventGroupCard.addContribsModalTitle(group.title)}
         alreadyIncluded={group.contributionIds}
         onConfirm={async (ids, selectedContribs) => {
           const allContribs = [...contributions, ...selectedContribs];

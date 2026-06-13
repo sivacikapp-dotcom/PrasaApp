@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getEventGroups } from "@/lib/eventGroupService";
+import { useI18n } from "@/contexts/I18nContext";
 import type { EventGroup } from "@/types/contribution";
 
 interface GroupPickerModalProps {
@@ -12,6 +13,7 @@ interface GroupPickerModalProps {
 }
 
 export function GroupPickerModal({ open, filterContributionIds, onConfirm, onClose }: GroupPickerModalProps) {
+  const { t } = useI18n();
   const [groups, setGroups] = useState<EventGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export function GroupPickerModal({ open, filterContributionIds, onConfirm, onClo
       <div className="relative z-10 w-full max-w-lg rounded-t-2xl sm:rounded-2xl bg-surface border border-rim shadow-2xl flex flex-col max-h-[70vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-rim shrink-0">
-          <h2 className="text-sm font-semibold text-ink">Pridať skupinu príspevkov</h2>
+          <h2 className="text-sm font-semibold text-ink">{t.components.groupPickerTitle}</h2>
           <button onClick={onClose} className="p-1 text-ink-subtle hover:text-ink">
             <XIcon />
           </button>
@@ -56,9 +58,9 @@ export function GroupPickerModal({ open, filterContributionIds, onConfirm, onClo
         {/* List */}
         <div className="overflow-y-auto flex-1">
           {loading ? (
-            <div className="py-10 text-center text-sm text-ink-subtle">Načítavam…</div>
+            <div className="py-10 text-center text-sm text-ink-subtle">{t.components.loadingContribs}</div>
           ) : groups.length === 0 ? (
-            <div className="py-10 text-center text-sm text-ink-subtle">Žiadne skupiny.</div>
+            <div className="py-10 text-center text-sm text-ink-subtle">{t.components.groupPickerEmpty}</div>
           ) : (
             groups.map((g) => (
               <button
@@ -73,10 +75,10 @@ export function GroupPickerModal({ open, filterContributionIds, onConfirm, onClo
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-ink truncate">{g.title}</p>
-                  <p className="text-xs text-ink-subtle">{g.contributionIds.length} príspevkov</p>
+                  <p className="text-xs text-ink-subtle">{t.chronicler.contributionPluralCount(g.contributionIds.length)}</p>
                 </div>
                 {saving === g.id && (
-                  <span className="text-xs text-ink-subtle shrink-0">Pridávam…</span>
+                  <span className="text-xs text-ink-subtle shrink-0">{t.components.addingBtn}</span>
                 )}
               </button>
             ))
@@ -89,7 +91,7 @@ export function GroupPickerModal({ open, filterContributionIds, onConfirm, onClo
             onClick={onClose}
             className="w-full rounded-xl border border-rim py-2.5 text-sm font-medium text-ink-dim hover:bg-surface-high"
           >
-            Zrušiť
+            {t.components.cancelBtn}
           </button>
         </div>
       </div>

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { sk } from "date-fns/locale";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +20,7 @@ import { GroupPickerModal } from "@/components/ui/GroupPickerModal";
 import { EventPickerModal } from "@/components/ui/EventPickerModal";
 import { EventGroupConflictModal } from "@/components/ui/EventGroupConflictModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import type { Contribution, Group, Tag, ChronicleEvent, EventGroup } from "@/types/contribution";
 
 const INPUT_CLS =
@@ -30,6 +30,7 @@ function ChroniclerDetailContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { appUser } = useAuth();
+  const { t, dateFnsLocale } = useI18n();
 
   const [contribution, setContribution] = useState<Contribution | null>(null);
   const [categories, setCategories] = useState<Group[]>([]);
@@ -146,10 +147,10 @@ function ChroniclerDetailContent() {
         );
         await updateContributionByChronicler(id, { voices: updatedVoices });
       } else {
-        setTranscribeVoiceError({ index, msg: data.error ?? "Neznáma chyba" });
+        setTranscribeVoiceError({ index, msg: data.error ?? t.chroniclerDetail.unknownError });
       }
     } catch (err) {
-      setTranscribeVoiceError({ index, msg: err instanceof Error ? err.message : "Neznáma chyba" });
+      setTranscribeVoiceError({ index, msg: err instanceof Error ? err.message : t.chroniclerDetail.unknownError });
     } finally {
       setTranscribingVoiceIndex(null);
     }
@@ -171,10 +172,10 @@ function ChroniclerDetailContent() {
         setChroniclerVoiceTranscript(data.transcript);
         await updateContributionByChronicler(id, { chroniclerVoiceTranscript: data.transcript });
       } else {
-        setTranscribeChroniclerError(data.error ?? "Neznáma chyba");
+        setTranscribeChroniclerError(data.error ?? t.chroniclerDetail.unknownError);
       }
     } catch (err) {
-      setTranscribeChroniclerError(err instanceof Error ? err.message : "Neznáma chyba");
+      setTranscribeChroniclerError(err instanceof Error ? err.message : t.chroniclerDetail.unknownError);
     } finally {
       setTranscribingChroniclerVoice(false);
     }
@@ -187,7 +188,7 @@ function ChroniclerDetailContent() {
         ? { ...prev, eventGroupIds: [...prev.eventGroupIds, group.id] }
         : prev
     );
-    setAssignedFeedback(`Zaradený do skupiny „${group.title}"`);
+    setAssignedFeedback(t.chroniclerDetail.assignedToGroup(group.title));
     setTimeout(() => setAssignedFeedback(null), 3000);
   }
 
@@ -200,7 +201,7 @@ function ChroniclerDetailContent() {
           : ev
       )
     );
-    setAssignedFeedback(`Zaradený do udalosti „${event.title}"`);
+    setAssignedFeedback(t.chroniclerDetail.assignedToEvent(event.title));
     setTimeout(() => setAssignedFeedback(null), 3000);
   }
 
@@ -278,16 +279,15 @@ function ChroniclerDetailContent() {
         updatedAt: new Date(),
       } as ChronicleEvent,
     ]);
-    setAssignedFeedback(`Udalosť „${title}" bola vytvorená a príspevok zaradený`);
+    setAssignedFeedback(t.chroniclerDetail.eventCreatedFeedback(title));
     setTimeout(() => setAssignedFeedback(null), 4000);
   }
 
   if (loading) return <><NavBar /><PageSpinner /></>;
-  if (!contribution) return <><NavBar /><div className="p-6 text-ink-dim">Príspevok neexistuje.</div></>;
+  if (!contribution) return <><NavBar /><div className="p-6 text-ink-dim">{t.chroniclerDetail.notFound}</div></>;
 
   const c = contribution;
 
-  // Find all groups and events this contribution belongs to
   const linkedGroups = allGroups.filter((g) => c.eventGroupIds.includes(g.id));
   const linkedEvents = allEvents.filter((ev) => ev.contributionIds.includes(id));
 
@@ -302,22 +302,22 @@ function ChroniclerDetailContent() {
           </button>
           <div className="flex-1">
             <p className="text-xs text-ink-subtle">
-              {c.contributorName} · {format(c.recordedAt, "d.M.yyyy HH:mm", { locale: sk })}
+              {c.contributorName} · {format(c.recordedAt, "d.M.yyyy HH:mm", { locale: dateFnsLocale })}
             </p>
             <p className="text-xs font-medium text-gold">
-              Udalosť: {format(c.eventDate, "d. MMMM yyyy", { locale: sk })}
+              {t.chroniclerDetail.eventLabel} {format(c.eventDate, "d. MMMM yyyy", { locale: dateFnsLocale })}
             </p>
           </div>
           <Badge color={c.status === "processed" ? "green" : "amber"}>
-            {c.status === "processed" ? "Spracovaný" : "Čaká"}
+            {c.status === "processed" ? t.components.statusProcessed : t.components.statusPending}
           </Badge>
         </div>
 
         {/* Original contribution */}
         <section className="rounded-xl bg-surface border border-rim p-4 space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Pôvodný príspevok</h2>
-          {c.texts.map((t, i) => (
-            <p key={i} className="text-sm text-ink whitespace-pre-wrap">{t}</p>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.chroniclerDetail.originalSection}</h2>
+          {c.texts.map((text, i) => (
+            <p key={i} className="text-sm text-ink whitespace-pre-wrap">{text}</p>
           ))}
           {c.photoUrls.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
@@ -341,11 +341,13 @@ function ChroniclerDetailContent() {
                       disabled={transcribingVoiceIndex === i}
                       className="shrink-0 flex items-center gap-1.5 rounded-lg border border-rim px-2.5 py-1.5 text-xs text-ink-dim hover:bg-surface-high hover:text-ink disabled:opacity-50 disabled:pointer-events-none transition-colors"
                     >
-                      {transcribingVoiceIndex === i ? <><SpinnerIcon />Prepisujem…</> : "Generovať prepis"}
+                      {transcribingVoiceIndex === i
+                        ? <><SpinnerIcon />{t.chroniclerDetail.transcribingBtn}</>
+                        : t.chroniclerDetail.transcribeBtn}
                     </button>
                   </div>
                   {transcribeVoiceError?.index === i && (
-                    <p className="text-xs text-danger">Prepis zlyhal: {transcribeVoiceError.msg}</p>
+                    <p className="text-xs text-danger">{t.chroniclerDetail.transcribeError(transcribeVoiceError.msg)}</p>
                   )}
                   {voiceTranscripts[i] && (
                     <p className="text-xs text-ink-dim italic leading-relaxed">{voiceTranscripts[i]}</p>
@@ -365,30 +367,30 @@ function ChroniclerDetailContent() {
 
         {/* Chronicler additions */}
         <section className="space-y-4">
-          <h2 className="text-sm font-semibold text-ink">Doplnenie kronikárom</h2>
+          <h2 className="text-sm font-semibold text-ink">{t.chroniclerDetail.additionsSection}</h2>
 
           <div>
-            <label className="block text-sm font-medium text-ink-dim mb-1.5">Verifikovaný dátum udalosti</label>
+            <label className="block text-sm font-medium text-ink-dim mb-1.5">{t.chroniclerDetail.verifiedDateLabel}</label>
             <input type="date" value={verifiedDate} onChange={(e) => setVerifiedDate(e.target.value)} className={INPUT_CLS} />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink-dim mb-1.5">Text kronikára</label>
+            <label className="block text-sm font-medium text-ink-dim mb-1.5">{t.chroniclerDetail.chroniclerTextLabel}</label>
             <textarea value={chroniclerText} onChange={(e) => setChroniclerText(e.target.value)}
-              placeholder="Vlastný text k udalosti…" rows={4} className={`${INPUT_CLS} resize-none`} />
+              placeholder={t.chroniclerDetail.chroniclerTextPlaceholder} rows={4} className={`${INPUT_CLS} resize-none`} />
           </div>
 
           {c.voices.length > 0 && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-ink-dim">
-                {c.voices.length === 1 ? "Prepis hlasovej správy" : "Prepisy hlasových správ"}
+                {t.chroniclerDetail.voiceTranscriptLabel(c.voices.length)}
               </label>
               {c.voices.map((_, i) => (
                 <textarea
                   key={i}
                   value={voiceTranscripts[i] ?? ""}
                   onChange={(e) => setVoiceTranscripts((prev) => { const next = [...prev]; next[i] = e.target.value; return next; })}
-                  placeholder={c.voices.length > 1 ? `Prepis správy ${i + 1}…` : "Textový prepis hlasovej správy…"}
+                  placeholder={t.chroniclerDetail.voiceTranscriptPlaceholder(i, c.voices.length)}
                   rows={2}
                   className={`${INPUT_CLS} resize-none`}
                 />
@@ -397,13 +399,13 @@ function ChroniclerDetailContent() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-ink-dim mb-2">Fotografie kronikára</label>
+            <label className="block text-sm font-medium text-ink-dim mb-2">{t.chroniclerDetail.chroniclerPhotosLabel}</label>
             <PhotoUploader photos={newPhotos} existingUrls={existingChroniclerPhotos} onChange={setNewPhotos}
               onDeleteExisting={(url) => setExistingChroniclerPhotos((prev) => prev.filter((u) => u !== url))} />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-ink-dim">Hlasová správa kronikára</label>
+            <label className="block text-sm font-medium text-ink-dim">{t.chroniclerDetail.chroniclerVoiceLabel}</label>
             <VoiceRecorder existingUrl={c.chroniclerVoiceUrl} maxSeconds={300} onRecorded={setVoiceBlob} onDelete={() => setVoiceBlob(null)} />
             {c.chroniclerVoiceUrl && (
               <>
@@ -413,21 +415,23 @@ function ChroniclerDetailContent() {
                   disabled={transcribingChroniclerVoice}
                   className="flex items-center gap-1.5 rounded-lg border border-rim px-2.5 py-1.5 text-xs text-ink-dim hover:bg-surface-high hover:text-ink disabled:opacity-50 disabled:pointer-events-none transition-colors"
                 >
-                  {transcribingChroniclerVoice ? <><SpinnerIcon />Prepisujem…</> : "Generovať prepis"}
+                  {transcribingChroniclerVoice
+                    ? <><SpinnerIcon />{t.chroniclerDetail.transcribingBtn}</>
+                    : t.chroniclerDetail.transcribeBtn}
                 </button>
                 {transcribeChroniclerError && (
-                  <p className="text-xs text-danger">Prepis zlyhal: {transcribeChroniclerError}</p>
+                  <p className="text-xs text-danger">{t.chroniclerDetail.transcribeError(transcribeChroniclerError)}</p>
                 )}
               </>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink-dim mb-1.5">Prepis hlasovej správy kronikára</label>
+            <label className="block text-sm font-medium text-ink-dim mb-1.5">{t.chroniclerDetail.chroniclerVoiceTranscriptLabel}</label>
             <textarea
               value={chroniclerVoiceTranscript}
               onChange={(e) => setChroniclerVoiceTranscript(e.target.value)}
-              placeholder="Textový prepis hlasovej správy kronikára…"
+              placeholder={t.chroniclerDetail.chroniclerVoiceTranscriptPlaceholder}
               rows={2}
               className={`${INPUT_CLS} resize-none`}
             />
@@ -435,7 +439,7 @@ function ChroniclerDetailContent() {
 
           {categories.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-ink-dim mb-2">Skupina</label>
+              <label className="block text-sm font-medium text-ink-dim mb-2">{t.chroniclerDetail.groupLabel}</label>
               <div className="flex flex-wrap gap-2">
                 {categories.map((cat) => (
                   <button
@@ -443,7 +447,7 @@ function ChroniclerDetailContent() {
                     type="button"
                     onClick={() =>
                       setSelectedCategories((prev) =>
-                        prev.includes(cat.id) ? prev.filter((id) => id !== cat.id) : [...prev, cat.id]
+                        prev.includes(cat.id) ? prev.filter((cid) => cid !== cat.id) : [...prev, cat.id]
                       )
                     }
                     className={`rounded-full px-3 py-1 text-sm font-medium transition-colors border ${
@@ -462,7 +466,7 @@ function ChroniclerDetailContent() {
 
           {tags.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-ink-dim mb-2">Hashtagy</label>
+              <label className="block text-sm font-medium text-ink-dim mb-2">{t.chroniclerDetail.hashtagsLabel}</label>
               <div className="flex flex-wrap gap-2">
                 {tags
                   .filter((tag) =>
@@ -487,9 +491,8 @@ function ChroniclerDetailContent() {
 
         {/* Assign to group / event */}
         <section className="rounded-xl border border-rim bg-surface p-4 space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Zaradenie</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.chroniclerDetail.assignSection}</h2>
 
-          {/* Current assignments */}
           {(linkedGroups.length > 0 || linkedEvents.length > 0) && (
             <div className="flex flex-wrap gap-2">
               {linkedGroups.map((group) => (
@@ -513,7 +516,7 @@ function ChroniclerDetailContent() {
                     type="button"
                     onClick={() => handleRemoveFromEvent(event.id)}
                     className="px-2 py-1.5 text-gold/40 hover:text-danger hover:bg-danger-dim border-l border-gold/20 transition-colors"
-                    title="Odstrániť z udalosti"
+                    title={t.chroniclerDetail.removeFromEvent}
                   >
                     <XSmallIcon />
                   </button>
@@ -522,21 +525,20 @@ function ChroniclerDetailContent() {
             </div>
           )}
 
-          {/* Assign buttons */}
           <div className="flex gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setGroupPickerOpen(true)}
               className="flex items-center gap-1.5 rounded-xl border border-rim px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink"
             >
-              <FolderIcon /> Do skupiny
+              <FolderIcon /> {t.chroniclerDetail.addToGroupBtn}
             </button>
             <button
               type="button"
               onClick={() => setEventPickerOpen(true)}
               className="flex items-center gap-1.5 rounded-xl border border-rim px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink"
             >
-              <CalendarIcon /> Do udalosti
+              <CalendarIcon /> {t.chroniclerDetail.addToEventBtn}
             </button>
           </div>
           {assignedFeedback && (
@@ -548,10 +550,10 @@ function ChroniclerDetailContent() {
       {/* Sticky action bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-rim px-4 py-3 flex gap-3">
         <Button variant="secondary" className="flex-1" loading={saving} onClick={() => handleSave(false)}>
-          {saved ? "✓ Uložené" : "Uložiť"}
+          {saved ? t.chroniclerDetail.savedBtn : t.chroniclerDetail.saveBtn}
         </Button>
         <Button variant="primary" className="flex-1" loading={saving} onClick={() => handleSave(true)}>
-          Označiť ako spracovaný
+          {t.chroniclerDetail.markProcessedBtn}
         </Button>
       </div>
 

@@ -1,7 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { format } from "date-fns";
-import { sk } from "date-fns/locale";
 import { Badge } from "@/components/ui/Badge";
+import { useI18n } from "@/contexts/I18nContext";
 import type { Contribution, Group, Tag } from "@/types/contribution";
 
 interface ContributionCardProps {
@@ -18,10 +20,11 @@ export function ContributionCard({
   contribution, href, categories = [], tags = [],
   selectable = false, selected = false, onSelect,
 }: ContributionCardProps) {
+  const { t, dateFnsLocale } = useI18n();
   const c = contribution;
   const displayDate = c.verifiedEventDate ?? c.eventDate;
   const catMap = Object.fromEntries(categories.map((cat) => [cat.id, cat]));
-  const tagMap = Object.fromEntries(tags.map((t) => [t.id, t]));
+  const tagMap = Object.fromEntries(tags.map((tg) => [tg.id, tg]));
   const allPhotos = [...c.photoUrls, ...c.chroniclerPhotoUrls];
 
   const inner = (
@@ -48,19 +51,19 @@ export function ContributionCard({
             )}
             <div>
               <p className="text-xs font-medium text-gold uppercase tracking-wide">
-                {format(displayDate, "d. MMMM yyyy", { locale: sk })}
+                {format(displayDate, "d. MMMM yyyy", { locale: dateFnsLocale })}
               </p>
               <p className="text-xs text-ink-subtle mt-0.5">{c.contributorName}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {c.eventGroupIds.length > 0 && !selectable && (
-              <span title="Súčasť skupiny">
+              <span title={t.components.partOfGroup}>
                 <LinkIcon />
               </span>
             )}
             <Badge color={c.status === "processed" ? "green" : "amber"}>
-              {c.status === "processed" ? "Spracovaný" : "Čaká"}
+              {c.status === "processed" ? t.components.statusProcessed : t.components.statusPending}
             </Badge>
           </div>
         </div>
@@ -96,12 +99,15 @@ export function ContributionCard({
         <div className="flex items-center gap-3 flex-wrap">
           {(c.voices.length > 0 || c.chroniclerVoiceUrl) && (
             <span className="flex items-center gap-1 text-xs text-ink-subtle">
-              <MicIcon /> Hlas
+              <MicIcon /> {t.components.voice}
             </span>
           )}
           {c.videoUrls?.length > 0 && (
             <span className="flex items-center gap-1 text-xs text-ink-subtle">
-              <VideoIcon /> {c.videoUrls.length > 1 ? `${c.videoUrls.length} videá` : "Video"}
+              <VideoIcon />{" "}
+              {c.videoUrls.length > 1
+                ? t.components.videoCount(c.videoUrls.length)
+                : t.components.video}
             </span>
           )}
           {c.location && (

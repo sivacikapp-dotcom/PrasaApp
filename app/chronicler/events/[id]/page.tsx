@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { sk } from "date-fns/locale";
 import Link from "next/link";
+import { useI18n } from "@/contexts/I18nContext";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
 import { Button } from "@/components/ui/Button";
@@ -58,13 +58,6 @@ const ENTITY_TYPE_ORDER: EntityType[] = [
   "photos",
 ];
 
-const ENTITY_LABELS: Record<EntityType, string> = {
-  text: "Text",
-  voiceUrl: "Hlasová správa",
-  chroniclerText: "Text kronikára",
-  chroniclerVoiceUrl: "Hlas kronikára",
-  photos: "Fotografie",
-};
 
 function buildEntities(contributions: Contribution[], entityOrder: string[]): Entity[] {
   const dateSorted = [...contributions].sort(
@@ -96,6 +89,7 @@ function buildEntities(contributions: Contribution[], entityOrder: string[]): En
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function EventDetailContent() {
+  const { t, dateFnsLocale } = useI18n();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
@@ -273,7 +267,7 @@ function EventDetailContent() {
     return (
       <>
         <NavBar />
-        <div className="p-8 text-center text-ink-dim">Udalosť neexistuje.</div>
+        <div className="p-8 text-center text-ink-dim">{t.eventDetail.notFound}</div>
       </>
     );
   }
@@ -298,7 +292,7 @@ function EventDetailContent() {
           <button
             onClick={() => setDeleteOpen(true)}
             className="rounded-lg p-1.5 text-ink-subtle hover:text-danger hover:bg-danger-dim"
-            title="Odstrániť udalosť"
+            title={t.eventDetail.deleteTooltip}
           >
             <TrashIcon />
           </button>
@@ -307,45 +301,45 @@ function EventDetailContent() {
         {/* Metadata form */}
         <section className="rounded-xl border border-rim bg-surface p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Informácie o udalosti</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.eventDetail.infoHeading}</h2>
             {effectiveCategory ? (
               <span className="rounded-full px-2.5 py-0.5 text-xs font-medium text-gold-text" style={{ backgroundColor: effectiveCategory.color }}>
                 {effectiveCategory.name}
               </span>
             ) : (
-              <span className="text-xs text-ink-subtle">Bez skupiny</span>
+              <span className="text-xs text-ink-subtle">{t.eventDetail.noGroup}</span>
             )}
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-ink-dim mb-1.5">Názov udalosti <span className="text-danger">*</span></label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="napr. Letný tábor 2025" className={INPUT_CLS} />
+            <label className="block text-xs font-medium text-ink-dim mb-1.5">{t.chronicler.eventNameLabel} <span className="text-danger">*</span></label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.chronicler.eventNamePlaceholder} className={INPUT_CLS} />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-ink-dim mb-1.5">Miesto udalosti</label>
-            <input value={locationName} onChange={(e) => setLocationName(e.target.value)} placeholder="napr. Rybník Slnečné jazero, Bratislava" className={INPUT_CLS} />
+            <label className="block text-xs font-medium text-ink-dim mb-1.5">{t.eventDetail.locationLabel}</label>
+            <input value={locationName} onChange={(e) => setLocationName(e.target.value)} placeholder={t.eventDetail.locationPlaceholder} className={INPUT_CLS} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-ink-dim mb-1.5">Dátum od</label>
+              <label className="block text-xs font-medium text-ink-dim mb-1.5">{t.eventDetail.dateFrom}</label>
               <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={INPUT_CLS} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-ink-dim mb-1.5">Dátum do</label>
+              <label className="block text-xs font-medium text-ink-dim mb-1.5">{t.eventDetail.dateTo}</label>
               <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={INPUT_CLS} />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-ink-dim mb-1.5">Popis udalosti</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Krátky popis udalosti pre kroniku…" rows={4} className={`${INPUT_CLS} resize-none`} />
+            <label className="block text-xs font-medium text-ink-dim mb-1.5">{t.eventDetail.descriptionLabel}</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t.eventDetail.descriptionPlaceholder} rows={4} className={`${INPUT_CLS} resize-none`} />
           </div>
 
           {allCategories.length > 0 && (
             <div>
-              <label className="block text-xs font-medium text-ink-dim mb-2">Skupina <span className="text-danger">*</span></label>
+              <label className="block text-xs font-medium text-ink-dim mb-2">{t.chronicler.eventGroupLabel} <span className="text-danger">*</span></label>
               <div className="flex flex-wrap gap-2">
                 {allCategories.map((cat) => (
                   <button
@@ -361,7 +355,7 @@ function EventDetailContent() {
                   </button>
                 ))}
               </div>
-              {!categoryId && <p className="mt-1 text-[10px] text-danger">Skupina je povinná.</p>}
+              {!categoryId && <p className="mt-1 text-[10px] text-danger">{t.eventDetail.groupRequired}</p>}
             </div>
           )}
         </section>
@@ -369,20 +363,20 @@ function EventDetailContent() {
         {/* Entity list */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-ink">Súhrn</h2>
+            <h2 className="text-sm font-semibold text-ink">{t.eventDetail.summaryHeading}</h2>
             {entities.length > 0 && (
               <span className="text-[10px] text-ink-subtle flex items-center gap-1">
-                <EyeSmallIcon /> — viditeľnosť pre užívateľov
+                <EyeSmallIcon /> {t.eventDetail.visibilityHint}
               </span>
             )}
           </div>
 
           {entities.length === 0 ? (
             <div className="rounded-xl border border-rim py-12 text-center space-y-2">
-              <p className="text-sm text-ink-subtle">Udalosť neobsahuje žiadne príspevky.</p>
+              <p className="text-sm text-ink-subtle">{t.eventDetail.noContribs}</p>
               <p className="text-xs text-ink-subtle">
-                Pridajte príspevky výberom v{" "}
-                <Link href="/chronicler" className="text-gold hover:underline">zozname príspevkov</Link>.
+                {t.eventDetail.addContribsHintPre}{" "}
+                <Link href="/chronicler" className="text-gold hover:underline">{t.eventDetail.addContribsHintLink}</Link>.
               </p>
             </div>
           ) : (
@@ -396,9 +390,10 @@ function EventDetailContent() {
                 const hasTranscript = type === "voiceUrl" ? c.voices.some((v) => !!v.transcript) : !!c.chroniclerVoiceTranscript;
                 const audioHidden = isVoiceEntity && hiddenItems.includes(`${key}:audio`);
                 const transcriptHidden = isVoiceEntity && hiddenItems.includes(`${key}:transcript`);
+                const entityLabels = t.eventDetail.entityLabels;
                 const authorLabel = isChroniclerContent
-                  ? "Kronikár"
-                  : `${c.contributorName} · ${format(c.recordedAt, "d.M.yyyy HH:mm", { locale: sk })}`;
+                  ? t.eventDetail.chroniclerLabel
+                  : `${c.contributorName} · ${format(c.recordedAt, "d.M.yyyy HH:mm", { locale: dateFnsLocale })}`;
 
                 return (
                   <div
@@ -410,21 +405,21 @@ function EventDetailContent() {
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                         isChroniclerContent ? "bg-gold-dim text-gold" : "bg-surface-high text-ink-dim"
                       }`}>
-                        {ENTITY_LABELS[type]}
+                        {entityLabels[type]}
                       </span>
                       <span className="flex-1 text-[10px] text-ink-subtle truncate">{authorLabel}</span>
                       <div className="flex items-center gap-0.5 shrink-0">
                         <Link
                           href={`/chronicler/${c.id}`}
                           className="rounded p-1 text-ink-subtle hover:text-ink transition-colors"
-                          title="Otvoriť a upraviť príspevok"
+                          title={t.eventDetail.openContribTitle}
                         >
                           <ExternalIcon />
                         </Link>
                         <button
                           onClick={() => setRemoveConfirmId(c.id)}
                           className="rounded p-1 text-ink-subtle hover:text-danger transition-colors"
-                          title="Odstrániť príspevok z udalosti"
+                          title={t.eventDetail.removeFromEventTitle}
                         >
                           <RemoveFromEventIcon />
                         </button>
@@ -432,7 +427,7 @@ function EventDetailContent() {
                           <button
                             onClick={() => toggleHiddenSub(key, "audio")}
                             className={`rounded p-1 text-ink-subtle hover:text-ink transition-colors ${audioHidden ? "opacity-30" : ""}`}
-                            title={audioHidden ? "Zobraziť audio" : "Skryť audio"}
+                            title={audioHidden ? t.eventDetail.showAudio : t.eventDetail.hideAudio}
                           >
                             <MicSmallIcon />
                           </button>
@@ -441,7 +436,7 @@ function EventDetailContent() {
                           <button
                             onClick={() => toggleHiddenSub(key, "transcript")}
                             className={`rounded p-1 text-ink-subtle hover:text-ink transition-colors ${transcriptHidden ? "opacity-30" : ""}`}
-                            title={transcriptHidden ? "Zobraziť prepis" : "Skryť prepis"}
+                            title={transcriptHidden ? t.eventDetail.showTranscript : t.eventDetail.hideTranscript}
                           >
                             <AlignLeftSmallIcon />
                           </button>
@@ -452,7 +447,7 @@ function EventDetailContent() {
                               onClick={() => moveEntity(entities, i, -1)}
                               disabled={i === 0}
                               className="rounded p-1 text-ink-subtle hover:text-ink transition-colors disabled:opacity-20 disabled:pointer-events-none"
-                              title="Posunúť hore"
+                              title={t.eventDetail.moveUp}
                             >
                               <ChevronUpIcon />
                             </button>
@@ -460,7 +455,7 @@ function EventDetailContent() {
                               onClick={() => moveEntity(entities, i, 1)}
                               disabled={i === entities.length - 1}
                               className="rounded p-1 text-ink-subtle hover:text-ink transition-colors disabled:opacity-20 disabled:pointer-events-none"
-                              title="Posunúť dole"
+                              title={t.eventDetail.moveDown}
                             >
                               <ChevronDownIcon />
                             </button>
@@ -469,7 +464,7 @@ function EventDetailContent() {
                         <button
                           onClick={() => toggleHidden(key)}
                           className="rounded p-1 text-ink-subtle hover:text-ink transition-colors"
-                          title={hidden ? "Zobraziť" : "Skryť"}
+                          title={hidden ? t.eventDetail.showItem : t.eventDetail.hideItem}
                         >
                           {hidden ? <EyeOffSmallIcon /> : <EyeSmallIcon />}
                         </button>
@@ -536,31 +531,31 @@ function EventDetailContent() {
             onClick={() => setAddContribOpen(true)}
             className="flex items-center gap-1.5 rounded-xl border border-rim px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink"
           >
-            <PlusIcon /> Pridať príspevky
+            <PlusIcon /> {t.eventDetail.addContribsBtn}
           </button>
           <button
             type="button"
             onClick={() => setAddGroupOpen(true)}
             className="flex items-center gap-1.5 rounded-xl border border-rim px-3 py-2 text-sm text-ink-dim hover:bg-surface-high hover:text-ink"
           >
-            <FolderIcon /> Pridať skupinu
+            <FolderIcon /> {t.eventDetail.addGroupBtn}
           </button>
         </section>
 
         {/* Editors section */}
         <section className="rounded-xl border border-rim bg-surface p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Oprávnenia na editovanie</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.eventDetail.editorsHeading}</h2>
             <button
               type="button"
               onClick={() => setUserPickerOpen(true)}
               className="flex items-center gap-1 text-xs text-gold hover:text-gold/80 font-medium"
             >
-              <PlusIcon /> Pridať editora
+              <PlusIcon /> {t.eventDetail.addEditorBtn}
             </button>
           </div>
           {editors.length === 0 ? (
-            <p className="text-xs text-ink-subtle">Žiadni oprávnení editoři. Môžete pridať používateľa, ktorý bude môcť editovať túto udalosť.</p>
+            <p className="text-xs text-ink-subtle">{t.eventDetail.noEditors}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {editors.map((u) => (
@@ -576,7 +571,7 @@ function EventDetailContent() {
                     type="button"
                     onClick={() => handleRemoveEditor(u.uid)}
                     className="ml-0.5 rounded-full p-0.5 text-ink-subtle hover:text-danger hover:bg-danger-dim"
-                    title="Odobrať oprávnenie"
+                    title={t.eventDetail.removeEditorTitle}
                   >
                     <RemoveEditorIcon />
                   </button>
@@ -592,16 +587,16 @@ function EventDetailContent() {
       <div className="fixed bottom-0 left-0 right-0 border-t border-rim bg-surface px-4 py-3">
         <div className="mx-auto max-w-2xl">
           <Button size="lg" className="w-full" loading={saving} disabled={!title.trim() || !categoryId} onClick={handleSave}>
-            {saved ? "✓ Uložené" : "Uložiť udalosť"}
+            {saved ? t.eventDetail.savedBtn : t.eventDetail.saveBtn}
           </Button>
         </div>
       </div>
 
       <ConfirmModal
         open={deleteOpen}
-        title="Odstrániť udalosť"
-        message={`Naozaj odstrániť udalosť „${event.title}"? Príspevky zostanú zachované.`}
-        confirmLabel="Odstrániť udalosť"
+        title={t.eventDetail.deleteTitle}
+        message={t.eventDetail.deleteMessage(event.title)}
+        confirmLabel={t.eventDetail.deleteConfirm}
         danger
         onConfirm={handleDelete}
         onClose={() => !deleting && setDeleteOpen(false)}
@@ -609,7 +604,7 @@ function EventDetailContent() {
 
       <ContributionPickerModal
         open={addContribOpen}
-        title="Pridať príspevky do udalosti"
+        title={t.eventDetail.addContribsModalTitle}
         alreadyIncluded={event.contributionIds}
         onConfirm={handleAddContributions}
         onClose={() => setAddContribOpen(false)}
@@ -630,9 +625,9 @@ function EventDetailContent() {
 
       <ConfirmModal
         open={!!removeConfirmId}
-        title="Odstrániť príspevok z udalosti"
-        message="Príspevok bude vyradený z tejto udalosti. Príspevok samotný zostane zachovaný."
-        confirmLabel="Odstrániť"
+        title={t.eventDetail.removeContribTitle}
+        message={t.eventDetail.removeContribMessage}
+        confirmLabel={t.eventDetail.removeContribConfirm}
         danger
         onConfirm={async () => {
           if (removeConfirmId) await handleRemoveMember(removeConfirmId);
