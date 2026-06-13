@@ -148,6 +148,7 @@ export const sk = {
   },
   chronicler: {
     tabContributions: "Príspevky",
+    tabGroups: "Skupiny príspevkov",
     tabEvents: "Udalosti",
     contributionsHeading: "Príspevky",
     pendingWarning: (n: number): string =>

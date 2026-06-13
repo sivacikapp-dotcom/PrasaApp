@@ -150,6 +150,7 @@ export const pl: Dictionary = {
   },
   chronicler: {
     tabContributions: "Posty",
+    tabGroups: "Grupy postów",
     tabEvents: "Zdarzenia",
     contributionsHeading: "Posty",
     pendingWarning: (n: number) =>

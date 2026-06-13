@@ -151,6 +151,7 @@ export const cs: Dictionary = {
   },
   chronicler: {
     tabContributions: "Příspěvky",
+    tabGroups: "Skupiny příspěvků",
     tabEvents: "Události",
     contributionsHeading: "Příspěvky",
     pendingWarning: (n: number) =>

@@ -147,6 +147,7 @@ export const zh: Dictionary = {
   },
   chronicler: {
     tabContributions: "贡献",
+    tabGroups: "贡献分组",
     tabEvents: "活动",
     contributionsHeading: "贡献",
     pendingWarning: (n) => `${n} 条贡献待处理`,

@@ -153,6 +153,7 @@ export const fr: Dictionary = {
   },
   chronicler: {
     tabContributions: "Contributions",
+    tabGroups: "Groupes de contributions",
     tabEvents: "Événements",
     contributionsHeading: "Contributions",
     pendingWarning: (n) =>

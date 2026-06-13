@@ -25,9 +25,8 @@ import { checkCategoryConflict, getEffectiveCategoryId, checkEventGroupConflict 
 import { updateContributionByChronicler } from "@/lib/contributionService";
 import type { Group, Tag, EventGroup, ChronicleEvent } from "@/types/contribution";
 
-type PageTab = "prispevky" | "udalosti";
+type PageTab = "prispevky" | "skupiny" | "udalosti";
 type ContribFilter = "all" | "pending" | "processed";
-type OrgTab = "groups" | "events";
 type SortKey = "date-desc" | "date-asc" | "contributor-asc" | "contributor-desc";
 type EventSortKey = "date-desc" | "date-asc" | "title-asc" | "title-desc";
 
@@ -42,7 +41,6 @@ function ChroniclerContent() {
   const [pageTab, setPageTab] = useState<PageTab>("prispevky");
 
   const [contribFilter, setContribFilter] = useState<ContribFilter>("pending");
-  const [orgTab, setOrgTab] = useState<OrgTab>("groups");
   const [categories, setCategories] = useState<Group[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [search, setSearch] = useState("");
@@ -67,7 +65,6 @@ function ChroniclerContent() {
       if (raw) {
         const s = JSON.parse(raw) as Record<string, unknown>;
         if (s.contribFilter) setContribFilter(s.contribFilter as ContribFilter);
-        if (s.orgTab) setOrgTab(s.orgTab as OrgTab);
         if (typeof s.filterDateFrom === "string") setFilterDateFrom(s.filterDateFrom);
         if (typeof s.filterDateTo === "string") setFilterDateTo(s.filterDateTo);
         if (Array.isArray(s.filterContributors)) setFilterContributors(new Set(s.filterContributors as string[]));
@@ -86,7 +83,7 @@ function ChroniclerContent() {
     if (!filterLoaded) return;
     try {
       sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({
-        contribFilter, orgTab, filterDateFrom, filterDateTo,
+        contribFilter, filterDateFrom, filterDateTo,
         filterContributors: [...filterContributors],
         filterGroups: [...filterGroups],
         filterEvents: [...filterEvents],
@@ -95,7 +92,7 @@ function ChroniclerContent() {
         sortKey, search,
       }));
     } catch { /* ignore */ }
-  }, [filterLoaded, contribFilter, orgTab, filterDateFrom, filterDateTo, filterContributors, filterGroups, filterEvents, filterNotInEvents, filterEventCategories, sortKey, search]);
+  }, [filterLoaded, contribFilter, filterDateFrom, filterDateTo, filterContributors, filterGroups, filterEvents, filterNotInEvents, filterEventCategories, sortKey, search]);
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -303,7 +300,7 @@ function ChroniclerContent() {
     setMerging(false);
     setMergeOpen(false);
     exitSelectMode();
-    setOrgTab("groups");
+    setPageTab("skupiny");
   }
 
   async function handleMerge() {
@@ -428,6 +425,7 @@ function ChroniclerContent() {
         <div className="mx-auto max-w-2xl px-4 flex gap-0.5 py-2">
           {([
             { key: "prispevky" as PageTab, label: t.chronicler.tabContributions, badge: pendingCount > 0 ? pendingCount : undefined },
+            { key: "skupiny" as PageTab, label: t.chronicler.tabGroups, badge: groups.length > 0 ? groups.length : undefined },
             { key: "udalosti" as PageTab, label: t.chronicler.tabEvents, badge: events.length > 0 ? events.length : undefined },
           ]).map(({ key, label, badge }) => (
             <button
@@ -727,77 +725,34 @@ function ChroniclerContent() {
             </div>
           )}
         </section>
-
-        {/* ── SKUPINY & UDALOSTI SECTION ────────────────────────────────── */}
-        <section>
-          <h2 className="mb-4 text-base font-semibold text-ink">{t.chronicler.orgHeading}</h2>
-
-          <div className="mb-4 flex rounded-xl border border-rim bg-surface p-1 gap-0.5">
-            {([
-              { key: "groups" as OrgTab, label: t.chronicler.orgTabGroups, count: groups.length },
-              { key: "events" as OrgTab, label: t.chronicler.orgTabEvents, count: events.length },
-            ] as const).map(({ key, label, count }) => (
-              <button
-                key={key}
-                onClick={() => setOrgTab(key)}
-                className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${
-                  orgTab === key
-                    ? "bg-gold text-gold-text shadow-sm"
-                    : "text-ink-dim hover:text-ink"
-                }`}
-              >
-                {label}
-                {count > 0 && (
-                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-gold-dim px-1 text-[10px] font-bold text-gold">
-                    {count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {orgTab === "groups" && (
-            loading ? (
-              <PageSpinner />
-            ) : groups.length === 0 ? (
-              <div className="py-12 text-center space-y-1.5">
-                <p className="text-sm text-ink-subtle">{t.chronicler.noGroups}</p>
-                <p className="text-xs text-ink-subtle">{t.chronicler.noGroupsHint}</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {groups.map((g) => (
-                  <EventGroupCard
-                    key={g.id}
-                    group={g}
-                    contributions={contributions}
-                    events={events}
-                    categories={categories}
-                    onCreateEvent={(ids) => openCreateEventModal(ids)}
-                  />
-                ))}
-              </div>
-            )
-          )}
-
-          {orgTab === "events" && (
-            loading ? (
-              <PageSpinner />
-            ) : events.length === 0 ? (
-              <div className="py-12 text-center space-y-1.5">
-                <p className="text-sm text-ink-subtle">{t.chronicler.noEvents}</p>
-                <p className="text-xs text-ink-subtle">{t.chronicler.noEventsHint}</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {events.map((ev) => (
-                  <EventCard key={ev.id} event={ev} contributions={contributions} categories={categories} />
-                ))}
-              </div>
-            )
-          )}
-        </section>
       </main>
+      )}
+
+      {/* ── Skupiny príspevkov tab ───────────────────────────────────────── */}
+      {pageTab === "skupiny" && (
+        <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
+          {loading ? (
+            <PageSpinner />
+          ) : groups.length === 0 ? (
+            <div className="py-12 text-center space-y-1.5">
+              <p className="text-sm text-ink-subtle">{t.chronicler.noGroups}</p>
+              <p className="text-xs text-ink-subtle">{t.chronicler.noGroupsHint}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {groups.map((g) => (
+                <EventGroupCard
+                  key={g.id}
+                  group={g}
+                  contributions={contributions}
+                  events={events}
+                  categories={categories}
+                  onCreateEvent={(ids) => openCreateEventModal(ids)}
+                />
+              ))}
+            </div>
+          )}
+        </main>
       )}
 
       {/* ── Udalosti tab ────────────────────────────────────────────────── */}
