@@ -6,6 +6,7 @@ import {
   subscribeToMyContributions,
   subscribeToAccessibleContributions,
 } from "@/lib/contributionService";
+import { subscribeToEvents } from "@/lib/eventService";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Contribution } from "@/types/contribution";
 
@@ -75,6 +76,42 @@ export function useContributionsForDashboard(
   }, [uid, isContributorOnly]);
 
   return { contributions, loading };
+}
+
+/** Returns all processed contributions accessible to uid (via visibleToIds). */
+export function useProcessedAccessibleContributions(uid: string | undefined) {
+  const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
+    const unsub = subscribeToAccessibleContributions(uid, (data) => {
+      setContributions(data.filter((c) => c.status === "processed"));
+      setLoading(false);
+    });
+    return unsub;
+  }, [uid]);
+
+  return { contributions, loading };
+}
+
+/** Returns a Set of contribution IDs that are in any chronicle event. */
+export function useEventMembership(): Set<string> {
+  const [ids, setIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const unsub = subscribeToEvents((events) => {
+      const s = new Set<string>();
+      events.forEach((ev) => ev.contributionIds.forEach((id) => s.add(id)));
+      setIds(s);
+    });
+    return unsub;
+  }, []);
+
+  return ids;
 }
 
 /** Returns the count of pending contributions — only subscribes for chronicler/admin users. */

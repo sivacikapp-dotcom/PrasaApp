@@ -16,6 +16,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { getCategories } from "./categoryService";
 import type { ChronicleEvent } from "@/types/contribution";
 
 function tsToDate(v: unknown): Date {
@@ -48,14 +49,20 @@ function fromFirestore(id: string, data: Record<string, unknown>): ChronicleEven
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-async function markContributionsProcessed(ids: string[]): Promise<void> {
+async function markContributionsProcessed(ids: string[], allowedUserIds: string[] = []): Promise<void> {
   await Promise.all(
-    ids.map((id) =>
-      updateDoc(doc(db, "contributions", id), {
-        status: "processed",
-        updatedAt: serverTimestamp(),
-      })
-    )
+    ids.map(async (id) => {
+      if (allowedUserIds.length > 0) {
+        const cRef = doc(db, "contributions", id);
+        const cSnap = await getDoc(cRef);
+        if (!cSnap.exists()) return;
+        const existing: string[] = (cSnap.data().visibleToIds as string[]) ?? [];
+        const merged = [...new Set([...existing, ...allowedUserIds])];
+        await updateDoc(cRef, { status: "processed", visibleToIds: merged, updatedAt: serverTimestamp() });
+      } else {
+        await updateDoc(doc(db, "contributions", id), { status: "processed", updatedAt: serverTimestamp() });
+      }
+    })
   );
 }
 
@@ -67,6 +74,13 @@ export async function createEvent(input: {
   categoryId: string | null;
   createdBy: string;
 }): Promise<string> {
+  let allowedUserIds: string[] = [];
+  if (input.categoryId) {
+    const allCats = await getCategories();
+    const cat = allCats.find((c) => c.id === input.categoryId);
+    allowedUserIds = cat?.allowedUserIds ?? [];
+  }
+
   const ref = await addDoc(collection(db, "events"), {
     title: input.title,
     locationName: null,
@@ -84,7 +98,7 @@ export async function createEvent(input: {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  await markContributionsProcessed(input.contributionIds);
+  await markContributionsProcessed(input.contributionIds, allowedUserIds);
   return ref.id;
 }
 
@@ -163,15 +177,25 @@ export async function addContributionsToEvent(
   const ref = doc(db, "events", eventId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
-  const current = (snap.data().contributionIds as string[]) ?? [];
+  const eventData = snap.data();
+  const current = (eventData.contributionIds as string[]) ?? [];
+  const categoryId = (eventData.categoryId as string | null) ?? null;
   const toAdd = newIds.filter((id) => !current.includes(id));
   if (toAdd.length === 0) return;
+
+  let allowedUserIds: string[] = [];
+  if (categoryId) {
+    const allCats = await getCategories();
+    const cat = allCats.find((c) => c.id === categoryId);
+    allowedUserIds = cat?.allowedUserIds ?? [];
+  }
+
   await Promise.all([
     updateDoc(ref, {
       contributionIds: [...current, ...toAdd],
       updatedAt: serverTimestamp(),
     }),
-    markContributionsProcessed(toAdd),
+    markContributionsProcessed(toAdd, allowedUserIds),
   ]);
 }
 
