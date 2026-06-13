@@ -169,6 +169,15 @@ function EventDetailContent() {
               {dateLabel && <span className="text-xs text-ink-subtle">{dateLabel}</span>}
             </div>
           </div>
+          <Link
+            href={`/events/${id}/trasa`}
+            className="shrink-0 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-gold/20"
+            style={{ borderColor: "#D4A843", color: "#D4A843" }}
+            title={t.trasa.viewTrasa}
+          >
+            <RouteSmallIcon />
+            <span className="hidden sm:inline">{t.trasa.viewTrasa}</span>
+          </Link>
         </div>
 
         {/* Description */}
@@ -289,6 +298,15 @@ function PinIcon() {
     <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function RouteSmallIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M3 10h11a4 4 0 0 1 0 8h-1M3 10l4-4M3 10l4 4" />
+      <circle cx="19" cy="6" r="2" />
     </svg>
   );
 }

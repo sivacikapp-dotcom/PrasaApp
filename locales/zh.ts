@@ -451,4 +451,13 @@ export const zh: Dictionary = {
     eventCreatedFeedback: (title: string) =>
       `活动"${title}"已创建，贡献已分配`,
   },
+  trasa: {
+    title: "可视路线",
+    play: "播放旅程",
+    pause: "暂停",
+    back: "返回",
+    noGpsDesc: "没有带GPS坐标的贡献。",
+    stopCount: (n: number): string => `${n} 站`,
+    viewTrasa: "可视路线",
+  },
 };

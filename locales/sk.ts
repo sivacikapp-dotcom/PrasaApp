@@ -459,6 +459,16 @@ export const sk = {
     eventCreatedFeedback: (title: string): string =>
       `Udalosť „${title}" bola vytvorená a príspevok zaradený`,
   },
+  trasa: {
+    title: "Vizuálna trasa",
+    play: "Prehrať výlet",
+    pause: "Zastaviť",
+    back: "Späť",
+    noGpsDesc: "Žiadne príspevky s GPS súradnicami.",
+    stopCount: (n: number): string =>
+      `${n} ${n === 1 ? "zastávka" : n < 5 ? "zastávky" : "zastávok"}`,
+    viewTrasa: "Vizuálna trasa",
+  },
 };
 
 export type Dictionary = typeof sk;

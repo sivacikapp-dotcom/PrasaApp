@@ -460,4 +460,14 @@ export const pl: Dictionary = {
     eventCreatedFeedback: (title: string) =>
       `Zdarzenie „${title}" zostało utworzone i post przypisany`,
   },
+  trasa: {
+    title: "Trasa wizualna",
+    play: "Odtwórz wycieczkę",
+    pause: "Zatrzymaj",
+    back: "Wstecz",
+    noGpsDesc: "Brak wpisów z lokalizacją GPS.",
+    stopCount: (n: number): string =>
+      `${n} ${n === 1 ? "przystanek" : n < 5 ? "przystanki" : "przystanków"}`,
+    viewTrasa: "Trasa wizualna",
+  },
 };

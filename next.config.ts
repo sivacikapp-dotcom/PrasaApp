@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["react-map-gl", "@vis.gl/react-mapbox"],
   experimental: {
     serverActions: {
       allowedOrigins: [

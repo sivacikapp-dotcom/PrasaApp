@@ -455,4 +455,13 @@ export const en: Dictionary = {
     eventCreatedFeedback: (title: string) =>
       `Event "${title}" was created and contribution assigned`,
   },
+  trasa: {
+    title: "Visual route",
+    play: "Play trip",
+    pause: "Pause",
+    back: "Back",
+    noGpsDesc: "No contributions with GPS coordinates.",
+    stopCount: (n: number): string => `${n} stop${n === 1 ? "" : "s"}`,
+    viewTrasa: "Visual route",
+  },
 };

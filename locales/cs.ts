@@ -460,4 +460,14 @@ export const cs: Dictionary = {
     eventCreatedFeedback: (title: string) =>
       `Událost „${title}" byla vytvořena a příspěvek zařazen`,
   },
+  trasa: {
+    title: "Vizuální trasa",
+    play: "Přehrát výlet",
+    pause: "Zastavit",
+    back: "Zpět",
+    noGpsDesc: "Žádné příspěvky s GPS souřadnicemi.",
+    stopCount: (n: number): string =>
+      `${n} ${n === 1 ? "zastávka" : n < 5 ? "zastávky" : "zastávek"}`,
+    viewTrasa: "Vizuální trasa",
+  },
 };

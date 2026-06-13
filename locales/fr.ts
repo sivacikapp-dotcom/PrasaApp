@@ -464,4 +464,13 @@ export const fr: Dictionary = {
     eventCreatedFeedback: (title: string) =>
       `L'événement « ${title} » a été créé et la contribution affectée`,
   },
+  trasa: {
+    title: "Itinéraire visuel",
+    play: "Lire le voyage",
+    pause: "Pause",
+    back: "Retour",
+    noGpsDesc: "Aucune contribution avec des coordonnées GPS.",
+    stopCount: (n: number): string => `${n} arrêt${n === 1 ? "" : "s"}`,
+    viewTrasa: "Itinéraire visuel",
+  },
 };

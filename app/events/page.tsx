@@ -58,44 +58,53 @@ function EventsContent() {
               const cat = categories.find((c) => c.id === ev.categoryId);
               const dateLabel = buildDateLabel(ev, dateFnsLocale);
               return (
-                <Link
+                <div
                   key={ev.id}
-                  href={`/events/${ev.id}`}
-                  className="block rounded-xl border border-rim bg-surface p-4 hover:border-gold hover:shadow-sm transition-all"
+                  className="rounded-xl border border-rim bg-surface hover:border-gold hover:shadow-sm transition-all overflow-hidden"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-ink flex-1 min-w-0 truncate">{ev.title}</p>
-                    {cat && (
-                      <span
-                        className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium text-gold-text"
-                        style={{ backgroundColor: cat.color }}
-                      >
-                        {cat.icon ? cat.icon + " " + cat.name : cat.name}
-                      </span>
-                    )}
-                  </div>
+                  <Link href={`/events/${ev.id}`} className="block p-4 pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-ink flex-1 min-w-0 truncate">{ev.title}</p>
+                      {cat && (
+                        <span
+                          className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium text-gold-text"
+                          style={{ backgroundColor: cat.color }}
+                        >
+                          {cat.icon ? cat.icon + " " + cat.name : cat.name}
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                    {ev.locationName && (
-                      <span className="flex items-center gap-1 text-xs text-ink-subtle">
-                        <PinIcon /> {ev.locationName}
-                      </span>
-                    )}
-                    {dateLabel && (
-                      <span className="text-xs text-ink-subtle">{dateLabel}</span>
-                    )}
-                  </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                      {ev.locationName && (
+                        <span className="flex items-center gap-1 text-xs text-ink-subtle">
+                          <PinIcon /> {ev.locationName}
+                        </span>
+                      )}
+                      {dateLabel && (
+                        <span className="text-xs text-ink-subtle">{dateLabel}</span>
+                      )}
+                    </div>
 
-                  {ev.description && (
-                    <p className="mt-1.5 text-xs text-ink-dim line-clamp-2">{ev.description}</p>
-                  )}
+                    {ev.description && (
+                      <p className="mt-1.5 text-xs text-ink-dim line-clamp-2">{ev.description}</p>
+                    )}
+                  </Link>
 
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="flex items-center gap-2 px-4 pb-3">
                     <span className="rounded-full bg-surface-high px-2 py-0.5 text-[10px] text-ink-subtle">
                       {t.events.contributionCount(ev.contributionIds.length)}
                     </span>
+                    <Link
+                      href={`/events/${ev.id}/trasa`}
+                      className="ml-auto flex items-center gap-1 text-[11px] font-medium hover:underline"
+                      style={{ color: "#D4A843" }}
+                    >
+                      <RouteSmallIcon />
+                      {t.trasa.viewTrasa}
+                    </Link>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -138,6 +147,15 @@ function PinIcon() {
     <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function RouteSmallIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M3 10h11a4 4 0 0 1 0 8h-1M3 10l4-4M3 10l4 4" />
+      <circle cx="19" cy="6" r="2" />
     </svg>
   );
 }
