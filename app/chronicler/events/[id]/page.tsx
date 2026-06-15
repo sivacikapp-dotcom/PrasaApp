@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useI18n } from "@/contexts/I18nContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
 import { Button } from "@/components/ui/Button";
@@ -90,6 +91,7 @@ function buildEntities(contributions: Contribution[], entityOrder: string[]): En
 
 function EventDetailContent() {
   const { t, dateFnsLocale } = useI18n();
+  const { appUser } = useAuth();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
@@ -113,6 +115,7 @@ function EventDetailContent() {
   const [addContribOpen, setAddContribOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [allCategories, setAllCategories] = useState<Group[]>([]);
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [editors, setEditors] = useState<AppUser[]>([]);
   const [userPickerOpen, setUserPickerOpen] = useState(false);
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
@@ -137,6 +140,7 @@ function EventDetailContent() {
         getAllUsers(),
       ]);
       setAllCategories(allCats ?? []);
+      setAllUsers(allUsers ?? []);
       if (!ev) { setLoading(false); return; }
       setEvent(ev);
       setTitle(ev.title ?? "");
@@ -169,14 +173,14 @@ function EventDetailContent() {
       dateTo: dateTo ? new Date(dateTo) : null,
       description: description.trim() || null,
       categoryId,
-    });
+    }, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
 
   async function handleRemoveMember(contributionId: string) {
-    await removeContributionFromEvent(id, contributionId);
+    await removeContributionFromEvent(id, contributionId, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     setContributions((prev) => prev.filter((c) => c.id !== contributionId));
     setEvent((prev) =>
       prev ? { ...prev, contributionIds: (prev.contributionIds ?? []).filter((x) => x !== contributionId) } : prev
@@ -184,7 +188,7 @@ function EventDetailContent() {
   }
 
   async function doAddContributions(ids: string[]) {
-    await addContributionsToEvent(id, ids);
+    await addContributionsToEvent(id, ids, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     const ev = await getEvent(id);
     if (!ev) return;
     setEvent(ev);
@@ -542,6 +546,9 @@ function EventDetailContent() {
           </button>
         </section>
 
+        {/* Tagged participants */}
+        <TaggedParticipants contributions={contributions} allUsers={allUsers} heading={t.eventDetail.taggedParticipants} />
+
         {/* Editors section */}
         <section className="rounded-xl border border-rim bg-surface p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -708,6 +715,59 @@ function EyeOffSmallIcon() {
 function RemoveEditorIcon() {
   return <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
 }
+
+// ── Tagged participants block ──────────────────────────────────────────────────
+
+function TaggedParticipants({
+  contributions,
+  allUsers,
+  heading,
+}: {
+  contributions: Contribution[];
+  allUsers: AppUser[];
+  heading: string;
+}) {
+  const taggedUidSet = new Set(contributions.flatMap((c) => c.taggedUserIds ?? []));
+  const taggedUsers = allUsers.filter((u) => taggedUidSet.has(u.uid));
+  if (taggedUsers.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-rim bg-surface px-4 py-3 space-y-2.5">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">{heading}</h2>
+      <div className="flex flex-wrap gap-2">
+        {taggedUsers.map((u) => (
+          <UserChip key={u.uid} user={u} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UserChip({ user }: { user: AppUser }) {
+  return (
+    <span className="flex items-center gap-1.5 rounded-full border border-rim bg-surface-high pl-0.5 pr-2.5 py-0.5">
+      {user.photoURL ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={user.photoURL}
+          alt={user.displayName}
+          width={22}
+          height={22}
+          referrerPolicy="no-referrer"
+          className="rounded-full object-cover shrink-0"
+          style={{ width: 22, height: 22 }}
+        />
+      ) : (
+        <span className="w-[22px] h-[22px] rounded-full bg-surface border border-rim flex items-center justify-center text-[9px] font-medium text-ink-subtle shrink-0">
+          {user.displayName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+        </span>
+      )}
+      <span className="text-xs text-ink">{user.displayName}</span>
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function EventDetailPage() {
   return (

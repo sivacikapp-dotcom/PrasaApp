@@ -17,6 +17,7 @@ import {
 import { db } from "./firebase";
 import type { Contribution, ContributionStatus, GeoLocation, VoiceNote } from "@/types/contribution";
 import { notifyChroniclers } from "./notifyService";
+import { createNotificationsForUsers, type Actor } from "./notificationService";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ function fromFirestore(id: string, data: Record<string, unknown>): Contribution 
     deletedAt: data.deletedAt ? tsToDate(data.deletedAt) : null,
     deletedBy: (data.deletedBy as string | null) ?? null,
     visibleToIds: (data.visibleToIds as string[]) ?? [],
+    taggedUserIds: (data.taggedUserIds as string[]) ?? [],
     createdAt: tsToDate(data.createdAt),
     updatedAt: tsToDate(data.updatedAt),
   };
@@ -83,6 +85,7 @@ export interface NewContributionInput {
   locationName?: string | null;
   categories?: string[];
   visibleToIds?: string[];
+  taggedUserIds?: string[];
 }
 
 export async function createContribution(input: NewContributionInput): Promise<string> {
@@ -103,6 +106,7 @@ export async function createContribution(input: NewContributionInput): Promise<s
     deletedAt: null,
     deletedBy: null,
     visibleToIds: input.visibleToIds ?? [input.contributorId],
+    taggedUserIds: input.taggedUserIds ?? [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -142,6 +146,7 @@ export interface ContributorUpdateInput {
   videoUrls?: string[];
   voices?: VoiceNote[];
   location?: GeoLocation | null;
+  taggedUserIds?: string[];
 }
 
 export async function updateContribution(
@@ -164,12 +169,21 @@ export interface ChroniclerUpdateInput {
   hashtags?: string[];
   status?: ContributionStatus;
   visibleToIds?: string[];
+  taggedUserIds?: string[];
 }
 
 export async function updateContributionByChronicler(
   id: string,
-  data: ChroniclerUpdateInput
+  data: ChroniclerUpdateInput,
+  actor?: Actor
 ): Promise<void> {
+  // If actor provided and taggedUserIds is changing, read previous state for diff
+  let prevTaggedUserIds: string[] = [];
+  if (actor && data.taggedUserIds !== undefined) {
+    const snap = await getDoc(doc(db, "contributions", id));
+    prevTaggedUserIds = (snap.data()?.taggedUserIds as string[]) ?? [];
+  }
+
   const payload: Record<string, unknown> = { ...data, updatedAt: serverTimestamp() };
   if (data.verifiedEventDate !== undefined) {
     payload.verifiedEventDate = data.verifiedEventDate
@@ -177,15 +191,54 @@ export async function updateContributionByChronicler(
       : null;
   }
   await updateDoc(doc(db, "contributions", id), payload);
+
+  // Notify newly tagged users
+  if (actor && data.taggedUserIds !== undefined) {
+    const newlyTagged = data.taggedUserIds.filter((uid) => !prevTaggedUserIds.includes(uid));
+    if (newlyTagged.length > 0) {
+      createNotificationsForUsers(
+        newlyTagged.map((userId) => ({
+          userId,
+          type: "user_tagged" as const,
+          actorId: actor.uid,
+          actorName: actor.displayName,
+          actorPhotoURL: actor.photoURL,
+          contributionId: id,
+        }))
+      );
+    }
+  }
 }
 
-export async function softDeleteContribution(id: string, deletedBy: string): Promise<void> {
+export async function softDeleteContribution(
+  id: string,
+  deletedBy: string,
+  actor?: Actor
+): Promise<void> {
+  // Read contribution to notify owner
+  let contributorId = "";
+  if (actor) {
+    const snap = await getDoc(doc(db, "contributions", id));
+    contributorId = (snap.data()?.contributorId as string) ?? "";
+  }
+
   await updateDoc(doc(db, "contributions", id), {
     status: "deleted",
     deletedAt: serverTimestamp(),
     deletedBy,
     updatedAt: serverTimestamp(),
   });
+
+  if (actor && contributorId && contributorId !== deletedBy) {
+    createNotificationsForUsers([{
+      userId: contributorId,
+      type: "contribution_deleted",
+      actorId: actor.uid,
+      actorName: actor.displayName,
+      actorPhotoURL: actor.photoURL,
+      contributionId: id,
+    }]);
+  }
 }
 
 export async function restoreContribution(id: string): Promise<void> {
@@ -201,8 +254,8 @@ export async function permanentlyDeleteContribution(id: string): Promise<void> {
   await deleteDoc(doc(db, "contributions", id));
 }
 
-export async function batchSoftDelete(ids: string[], deletedBy: string): Promise<void> {
-  await Promise.all(ids.map((id) => softDeleteContribution(id, deletedBy)));
+export async function batchSoftDelete(ids: string[], deletedBy: string, actor?: Actor): Promise<void> {
+  await Promise.all(ids.map((id) => softDeleteContribution(id, deletedBy, actor)));
 }
 
 export async function batchRestore(ids: string[]): Promise<void> {

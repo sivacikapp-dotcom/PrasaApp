@@ -5,6 +5,16 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/Badge";
 import { useI18n } from "@/contexts/I18nContext";
 import type { Contribution, Group, Tag } from "@/types/contribution";
+import type { ContributionListPrefs } from "@/types/userPreferences";
+
+const SHOW_ALL: ContributionListPrefs = {
+  defaultSort: "desc",
+  showLocation: true,
+  showContributor: true,
+  showContentTypes: true,
+  showPhotoPreview: true,
+  showTaggedUsers: "yes",
+};
 
 interface ContributionCardProps {
   contribution: Contribution;
@@ -14,11 +24,14 @@ interface ContributionCardProps {
   selectable?: boolean;
   selected?: boolean;
   onSelect?: () => void;
+  displayPrefs?: ContributionListPrefs;
+  currentUserId?: string;
 }
 
 export function ContributionCard({
   contribution, href, categories = [], tags = [],
   selectable = false, selected = false, onSelect,
+  displayPrefs = SHOW_ALL, currentUserId,
 }: ContributionCardProps) {
   const { t, dateFnsLocale } = useI18n();
   const c = contribution;
@@ -26,6 +39,12 @@ export function ContributionCard({
   const catMap = Object.fromEntries(categories.map((cat) => [cat.id, cat]));
   const tagMap = Object.fromEntries(tags.map((tg) => [tg.id, tg]));
   const allPhotos = [...c.photoUrls, ...c.chroniclerPhotoUrls];
+
+  const showTaggedBadge = (() => {
+    if (displayPrefs.showTaggedUsers === "no" || c.taggedUserIds.length === 0) return false;
+    if (displayPrefs.showTaggedUsers === "only_me") return currentUserId ? c.taggedUserIds.includes(currentUserId) : false;
+    return true;
+  })();
 
   const inner = (
     <article className={`rounded-xl border bg-surface p-4 shadow-sm transition-colors space-y-3 active:scale-[0.98] ${
@@ -53,7 +72,9 @@ export function ContributionCard({
               <p className="text-xs font-medium text-gold uppercase tracking-wide">
                 {format(displayDate, "d. MMMM yyyy", { locale: dateFnsLocale })}
               </p>
-              <p className="text-xs text-ink-subtle mt-0.5">{c.contributorName}</p>
+              {displayPrefs.showContributor && (
+                <p className="text-xs text-ink-subtle mt-0.5">{c.contributorName}</p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -79,7 +100,7 @@ export function ContributionCard({
         )}
 
         {/* Photos */}
-        {allPhotos.length > 0 && (
+        {displayPrefs.showPhotoPreview && allPhotos.length > 0 && (
           <div className="flex gap-1.5 overflow-hidden">
             {allPhotos.slice(0, 4).map((url, i) => (
               <div key={url} className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden bg-surface-high">
@@ -97,12 +118,12 @@ export function ContributionCard({
 
         {/* Footer: icons + categories/tags */}
         <div className="flex items-center gap-3 flex-wrap">
-          {(c.voices.length > 0 || c.chroniclerVoiceUrl) && (
+          {displayPrefs.showContentTypes && (c.voices.length > 0 || c.chroniclerVoiceUrl) && (
             <span className="flex items-center gap-1 text-xs text-ink-subtle">
               <MicIcon /> {t.components.voice}
             </span>
           )}
-          {c.videoUrls?.length > 0 && (
+          {displayPrefs.showContentTypes && c.videoUrls?.length > 0 && (
             <span className="flex items-center gap-1 text-xs text-ink-subtle">
               <VideoIcon />{" "}
               {c.videoUrls.length > 1
@@ -110,9 +131,17 @@ export function ContributionCard({
                 : t.components.video}
             </span>
           )}
-          {c.location && (
+          {displayPrefs.showLocation && c.location && (
             <span className="flex items-center gap-1 text-xs text-ink-subtle">
               <PinIcon /> {c.locationName ?? `${c.location.latitude.toFixed(4)}, ${c.location.longitude.toFixed(4)}`}
+            </span>
+          )}
+          {showTaggedBadge && (
+            <span className="flex items-center gap-1 text-xs text-ink-subtle">
+              <UsersIcon />
+              {displayPrefs.showTaggedUsers === "only_me"
+                ? t.taggedUsers.displayLabel
+                : `${t.taggedUsers.displayLabel} (${c.taggedUserIds.length})`}
             </span>
           )}
           {c.categories.map((id) =>
@@ -173,6 +202,16 @@ function PinIcon() {
     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function UsersIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   );
 }

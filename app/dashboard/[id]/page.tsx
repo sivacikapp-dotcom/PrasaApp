@@ -10,8 +10,10 @@ import { PageSpinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { getContribution, softDeleteContribution } from "@/lib/contributionService";
+import { getAllUsers } from "@/lib/userService";
 import { ConfirmModal } from "@/components/ui/Modal";
 import type { Contribution } from "@/types/contribution";
+import type { AppUser } from "@/types/user";
 
 function ContributionDetailContent() {
   const { id } = useParams<{ id: string }>();
@@ -19,12 +21,20 @@ function ContributionDetailContent() {
   const { appUser } = useAuth();
   const { t, dateFnsLocale } = useI18n();
   const [contribution, setContribution] = useState<Contribution | null>(null);
+  const [taggedUsers, setTaggedUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    getContribution(id).then((c) => { setContribution(c); setLoading(false); });
+    getContribution(id).then(async (c) => {
+      setContribution(c);
+      if (c && c.taggedUserIds.length > 0) {
+        const users = await getAllUsers();
+        setTaggedUsers(users.filter((u) => c.taggedUserIds.includes(u.uid)));
+      }
+      setLoading(false);
+    });
   }, [id]);
 
   async function handleDelete() {
@@ -134,6 +144,22 @@ function ContributionDetailContent() {
           <section>
             <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.contribCard.chroniclerNote}</h2>
             <p className="text-sm text-gold/80 whitespace-pre-wrap border-l-2 border-gold/40 pl-3">{c.chroniclerText}</p>
+          </section>
+        )}
+
+        {taggedUsers.length > 0 && (
+          <section>
+            <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.taggedUsers.displayLabel}</h2>
+            <div className="flex flex-wrap gap-1.5">
+              {taggedUsers.map((u) => (
+                <span
+                  key={u.uid}
+                  className="rounded-full bg-gold-dim border border-gold/30 px-2.5 py-1 text-xs text-gold"
+                >
+                  {u.displayName}
+                </span>
+              ))}
+            </div>
           </section>
         )}
 

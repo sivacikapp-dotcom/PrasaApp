@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { getCategories } from "./categoryService";
+import { createNotificationsForUsers, type Actor, type NotificationInput } from "./notificationService";
 import type { ChronicleEvent } from "@/types/contribution";
 
 function tsToDate(v: unknown): Date {
@@ -66,6 +67,19 @@ async function markContributionsProcessed(ids: string[], allowedUserIds: string[
   );
 }
 
+async function getContributorIds(contributionIds: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  await Promise.all(
+    contributionIds.map(async (id) => {
+      const snap = await getDoc(doc(db, "contributions", id));
+      if (snap.exists()) {
+        map.set(id, (snap.data().contributorId as string) ?? "");
+      }
+    })
+  );
+  return map;
+}
+
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function createEvent(input: {
@@ -73,12 +87,15 @@ export async function createEvent(input: {
   contributionIds: string[];
   categoryId: string | null;
   createdBy: string;
+  actor?: Actor;
 }): Promise<string> {
   let allowedUserIds: string[] = [];
+  let categoryName = "";
   if (input.categoryId) {
     const allCats = await getCategories();
     const cat = allCats.find((c) => c.id === input.categoryId);
     allowedUserIds = cat?.allowedUserIds ?? [];
+    categoryName = cat?.name ?? "";
   }
 
   const ref = await addDoc(collection(db, "events"), {
@@ -99,6 +116,44 @@ export async function createEvent(input: {
     updatedAt: serverTimestamp(),
   });
   await markContributionsProcessed(input.contributionIds, allowedUserIds);
+
+  if (input.actor && input.contributionIds.length > 0) {
+    const ownerMap = await getContributorIds(input.contributionIds);
+    const uniqueOwners = [...new Set(ownerMap.values())].filter((uid) => uid !== input.actor!.uid);
+    const notifications: NotificationInput[] = [];
+
+    // Notify contribution owners
+    for (const ownerId of uniqueOwners) {
+      notifications.push({
+        userId: ownerId,
+        type: "contribution_added_to_event",
+        actorId: input.actor.uid,
+        actorName: input.actor.displayName,
+        actorPhotoURL: input.actor.photoURL,
+        eventId: ref.id,
+        eventTitle: input.title,
+      });
+    }
+
+    // Notify all category members about the new event
+    const memberIds = allowedUserIds.filter((uid) => uid !== input.actor!.uid);
+    for (const uid of memberIds) {
+      notifications.push({
+        userId: uid,
+        type: "event_created",
+        actorId: input.actor.uid,
+        actorName: input.actor.displayName,
+        actorPhotoURL: input.actor.photoURL,
+        eventId: ref.id,
+        eventTitle: input.title,
+        categoryId: input.categoryId ?? undefined,
+        categoryName: categoryName || undefined,
+      });
+    }
+
+    createNotificationsForUsers(notifications);
+  }
+
   return ref.id;
 }
 
@@ -119,7 +174,14 @@ export interface EventUpdateInput {
   hashtags?: string[];
 }
 
-export async function updateEvent(id: string, data: EventUpdateInput): Promise<void> {
+export async function updateEvent(id: string, data: EventUpdateInput, actor?: Actor): Promise<void> {
+  // If categoryId is changing, read current event for old value
+  let oldCategoryId: string | null = null;
+  if (actor && data.categoryId !== undefined) {
+    const snap = await getDoc(doc(db, "events", id));
+    oldCategoryId = (snap.data()?.categoryId as string | null) ?? null;
+  }
+
   const payload: Record<string, unknown> = { updatedAt: serverTimestamp() };
   if (data.title !== undefined) payload.title = data.title;
   if (data.locationName !== undefined) payload.locationName = data.locationName;
@@ -134,6 +196,28 @@ export async function updateEvent(id: string, data: EventUpdateInput): Promise<v
     payload.dateTo = data.dateTo ? Timestamp.fromDate(data.dateTo) : null;
   }
   await updateDoc(doc(db, "events", id), payload);
+
+  // Notify new category members when categoryId changes to a different group
+  if (actor && data.categoryId && data.categoryId !== oldCategoryId) {
+    const allCats = await getCategories();
+    const cat = allCats.find((c) => c.id === data.categoryId);
+    const memberIds = (cat?.allowedUserIds ?? []).filter((uid) => uid !== actor.uid);
+    const eventTitle = data.title ?? "";
+
+    createNotificationsForUsers(
+      memberIds.map((userId) => ({
+        userId,
+        type: "event_created" as const,
+        actorId: actor.uid,
+        actorName: actor.displayName,
+        actorPhotoURL: actor.photoURL,
+        eventId: id,
+        eventTitle,
+        categoryId: data.categoryId ?? undefined,
+        categoryName: cat?.name,
+      }))
+    );
+  }
 }
 
 export async function setEventHiddenItems(eventId: string, hiddenItems: string[]): Promise<void> {
@@ -172,7 +256,8 @@ export async function removeEventEditor(eventId: string, uid: string): Promise<v
 
 export async function addContributionsToEvent(
   eventId: string,
-  newIds: string[]
+  newIds: string[],
+  actor?: Actor
 ): Promise<void> {
   const ref = doc(db, "events", eventId);
   const snap = await getDoc(ref);
@@ -180,14 +265,17 @@ export async function addContributionsToEvent(
   const eventData = snap.data();
   const current = (eventData.contributionIds as string[]) ?? [];
   const categoryId = (eventData.categoryId as string | null) ?? null;
+  const eventTitle = (eventData.title as string) ?? "";
   const toAdd = newIds.filter((id) => !current.includes(id));
   if (toAdd.length === 0) return;
 
   let allowedUserIds: string[] = [];
+  let categoryName = "";
   if (categoryId) {
     const allCats = await getCategories();
     const cat = allCats.find((c) => c.id === categoryId);
     allowedUserIds = cat?.allowedUserIds ?? [];
+    categoryName = cat?.name ?? "";
   }
 
   await Promise.all([
@@ -197,20 +285,78 @@ export async function addContributionsToEvent(
     }),
     markContributionsProcessed(toAdd, allowedUserIds),
   ]);
+
+  if (actor && toAdd.length > 0) {
+    const ownerMap = await getContributorIds(toAdd);
+    const uniqueOwners = [...new Set(ownerMap.values())].filter((uid) => uid !== actor.uid);
+    const notifications: NotificationInput[] = [];
+
+    // Notify contribution owners
+    for (const ownerId of uniqueOwners) {
+      notifications.push({
+        userId: ownerId,
+        type: "contribution_added_to_event",
+        actorId: actor.uid,
+        actorName: actor.displayName,
+        actorPhotoURL: actor.photoURL,
+        eventId,
+        eventTitle,
+      });
+    }
+
+    // Notify category members about new processed content
+    const memberIds = allowedUserIds.filter((uid) => uid !== actor.uid);
+    for (const uid of memberIds) {
+      notifications.push({
+        userId: uid,
+        type: "contribution_processed",
+        actorId: actor.uid,
+        actorName: actor.displayName,
+        actorPhotoURL: actor.photoURL,
+        eventId,
+        eventTitle,
+        categoryId: categoryId ?? undefined,
+        categoryName: categoryName || undefined,
+      });
+    }
+
+    createNotificationsForUsers(notifications);
+  }
 }
 
 export async function removeContributionFromEvent(
   eventId: string,
-  contributionId: string
+  contributionId: string,
+  actor?: Actor
 ): Promise<void> {
   const ref = doc(db, "events", eventId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
-  const current = (snap.data().contributionIds as string[]) ?? [];
+  const eventData = snap.data();
+  const current = (eventData.contributionIds as string[]) ?? [];
+  const eventTitle = (eventData.title as string) ?? "";
+
   await updateDoc(ref, {
     contributionIds: current.filter((id) => id !== contributionId),
     updatedAt: serverTimestamp(),
   });
+
+  if (actor) {
+    const contribSnap = await getDoc(doc(db, "contributions", contributionId));
+    const ownerId = (contribSnap.data()?.contributorId as string) ?? "";
+    if (ownerId && ownerId !== actor.uid) {
+      createNotificationsForUsers([{
+        userId: ownerId,
+        type: "contribution_removed_from_event",
+        actorId: actor.uid,
+        actorName: actor.displayName,
+        actorPhotoURL: actor.photoURL,
+        contributionId,
+        eventId,
+        eventTitle,
+      }]);
+    }
+  }
 }
 
 export async function deleteEvent(id: string): Promise<void> {

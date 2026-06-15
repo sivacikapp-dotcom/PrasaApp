@@ -12,7 +12,11 @@ const LANGUAGES: { code: Locale; label: string; flag: string }[] = [
   { code: "zh", label: "中文",        flag: "🇨🇳" },
 ];
 
-export function LanguageSwitcher() {
+interface LanguageSwitcherProps {
+  inline?: boolean;
+}
+
+export function LanguageSwitcher({ inline = false }: LanguageSwitcherProps) {
   const { locale, setLocale } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -33,6 +37,27 @@ export function LanguageSwitcher() {
   function select(code: Locale) {
     setLocale(code);
     setOpen(false);
+  }
+
+  if (inline) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        {LANGUAGES.map(({ code, label, flag }) => (
+          <button
+            key={code}
+            onClick={() => setLocale(code)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
+              locale === code
+                ? "bg-gold-dim text-gold font-medium"
+                : "text-ink hover:bg-surface"
+            }`}
+          >
+            <span aria-hidden="true">{flag}</span>
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+    );
   }
 
   return (

@@ -10,12 +10,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { getCategories } from "@/lib/categoryService";
 import { getEvents, getEventsForUser } from "@/lib/eventService";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import type { ChronicleEvent, Group } from "@/types/contribution";
 import type { Locale as DateFnsLocale } from "date-fns";
 
 function EventsContent() {
   const { appUser } = useAuth();
   const { t, dateFnsLocale } = useI18n();
+  const { prefs } = useUserPreferences();
+  const ep = prefs.events;
   const [events, setEvents] = useState<ChronicleEvent[]>([]);
   const [categories, setCategories] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +39,13 @@ function EventsContent() {
     load();
   }, [appUser]);
 
+  const sortedEvents = [...events].sort((a, b) => {
+    const aDate = a.dateFrom ?? a.createdAt;
+    const bDate = b.dateFrom ?? b.createdAt;
+    const diff = aDate.getTime() - bDate.getTime();
+    return ep.defaultSort === "asc" ? diff : -diff;
+  });
+
   return (
     <>
       <NavBar />
@@ -54,7 +64,7 @@ function EventsContent() {
           </div>
         ) : (
           <div className="space-y-3">
-            {events.map((ev) => {
+            {sortedEvents.map((ev) => {
               const cat = categories.find((c) => c.id === ev.categoryId);
               const dateLabel = buildDateLabel(ev, dateFnsLocale);
               return (
@@ -76,13 +86,18 @@ function EventsContent() {
                     </div>
 
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                      {ev.locationName && (
+                      {ep.showLocation && ev.locationName && (
                         <span className="flex items-center gap-1 text-xs text-ink-subtle">
                           <PinIcon /> {ev.locationName}
                         </span>
                       )}
                       {dateLabel && (
                         <span className="text-xs text-ink-subtle">{dateLabel}</span>
+                      )}
+                      {ep.showLastModified && (
+                        <span className="text-xs text-ink-subtle">
+                          {format(ev.updatedAt, "d. M. yyyy", { locale: dateFnsLocale })}
+                        </span>
                       )}
                     </div>
 
@@ -92,9 +107,11 @@ function EventsContent() {
                   </Link>
 
                   <div className="flex items-center gap-2 px-4 pb-3">
-                    <span className="rounded-full bg-surface-high px-2 py-0.5 text-[10px] text-ink-subtle">
-                      {t.events.contributionCount(ev.contributionIds.length)}
-                    </span>
+                    {ep.showContributionCount && (
+                      <span className="rounded-full bg-surface-high px-2 py-0.5 text-[10px] text-ink-subtle">
+                        {t.events.contributionCount(ev.contributionIds.length)}
+                      </span>
+                    )}
                     <Link
                       href={`/events/${ev.id}/trasa`}
                       className="ml-auto flex items-center gap-1 text-[11px] font-medium hover:underline"

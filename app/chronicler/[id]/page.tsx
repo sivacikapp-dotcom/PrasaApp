@@ -13,7 +13,9 @@ import { VoiceRecorder } from "@/components/contributions/VoiceRecorder";
 import { PhotoUploader, type PhotoFile } from "@/components/contributions/PhotoUploader";
 import { getContribution, updateContributionByChronicler, softDeleteContribution } from "@/lib/contributionService";
 import { getCategories, getTags } from "@/lib/categoryService";
+import { getAllUsers } from "@/lib/userService";
 import { uploadChroniclerPhoto, uploadChroniclerVoice } from "@/lib/storageService";
+import { UserTagSelector } from "@/components/contributions/UserTagSelector";
 import { addContributionsToGroup, getEventGroups } from "@/lib/eventGroupService";
 import { addContributionsToEvent, createEvent, getEvents, removeContributionFromEvent, updateEvent } from "@/lib/eventService";
 import { ConfirmModal } from "@/components/ui/Modal";
@@ -23,6 +25,7 @@ import { EventGroupConflictModal } from "@/components/ui/EventGroupConflictModal
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import type { Contribution, Group, Tag, ChronicleEvent, EventGroup } from "@/types/contribution";
+import type { AppUser } from "@/types/user";
 
 const INPUT_CLS =
   "w-full rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold";
@@ -47,6 +50,9 @@ function ChroniclerDetailContent() {
   const [chroniclerVoiceTranscript, setChroniclerVoiceTranscript] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [taggedUserIds, setTaggedUserIds] = useState<string[]>([]);
+  const [taggedUserError, setTaggedUserError] = useState<{ invalidIds: string[]; invalidNames: string[] } | null>(null);
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [transcribingVoiceIndex, setTranscribingVoiceIndex] = useState<number | null>(null);
@@ -63,9 +69,10 @@ function ChroniclerDetailContent() {
   const [allEvents, setAllEvents] = useState<ChronicleEvent[]>([]);
 
   useEffect(() => {
-    Promise.all([getContribution(id), getCategories(), getTags(), getEventGroups(), getEvents()]).then(([c, cats, ts, grps, evs]) => {
+    Promise.all([getContribution(id), getCategories(), getTags(), getEventGroups(), getEvents(), getAllUsers()]).then(([c, cats, ts, grps, evs, users]) => {
       setAllGroups(grps);
       setAllEvents(evs);
+      setAllUsers(users);
       if (c) {
         setContribution(c);
         setVerifiedDate(c.verifiedEventDate ? format(c.verifiedEventDate, "yyyy-MM-dd") : "");
@@ -75,6 +82,7 @@ function ChroniclerDetailContent() {
         setExistingChroniclerPhotos(c.chroniclerPhotoUrls);
         setSelectedCategories(c.categories);
         setSelectedTags(c.hashtags);
+        setTaggedUserIds(c.taggedUserIds ?? []);
       }
       setCategories(cats);
       setTags(ts);
@@ -88,6 +96,23 @@ function ChroniclerDetailContent() {
 
   async function handleSave(markProcessed: boolean) {
     if (!contribution) return;
+    // Validate tagged users are in the contribution's (currently selected) groups
+    if (taggedUserIds.length > 0) {
+      const allowedInSelectedGroups = new Set(
+        categories
+          .filter((g) => selectedCategories.includes(g.id))
+          .flatMap((g) => g.allowedUserIds)
+      );
+      const invalidIds = taggedUserIds.filter((uid) => !allowedInSelectedGroups.has(uid));
+      if (invalidIds.length > 0) {
+        const invalidNames = invalidIds.map(
+          (uid) => allUsers.find((u) => u.uid === uid)?.displayName ?? uid
+        );
+        setTaggedUserError({ invalidIds, invalidNames });
+        return;
+      }
+    }
+    setTaggedUserError(null);
     setSaving(true);
     const uploadedPhotos = await Promise.all(newPhotos.map((p) => uploadChroniclerPhoto(p.file, id)));
     const allChroniclerPhotos = [...existingChroniclerPhotos, ...uploadedPhotos];
@@ -116,8 +141,9 @@ function ChroniclerDetailContent() {
       categories: selectedCategories,
       hashtags: selectedTags,
       visibleToIds,
+      taggedUserIds,
       ...(markProcessed ? { status: "processed" } : {}),
-    });
+    }, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
 
     setNewPhotos([]);
     setExistingChroniclerPhotos(allChroniclerPhotos);
@@ -196,7 +222,7 @@ function ChroniclerDetailContent() {
   }
 
   async function doAddToEvent(event: ChronicleEvent) {
-    await addContributionsToEvent(event.id, [id]);
+    await addContributionsToEvent(event.id, [id], appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     setAllEvents((prev) =>
       prev.map((ev) =>
         ev.id === event.id && !ev.contributionIds.includes(id)
@@ -248,7 +274,7 @@ function ChroniclerDetailContent() {
   }
 
   async function handleRemoveFromEvent(eventId: string) {
-    await removeContributionFromEvent(eventId, id);
+    await removeContributionFromEvent(eventId, id, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     setAllEvents((prev) =>
       prev.map((ev) =>
         ev.id === eventId
@@ -289,7 +315,7 @@ function ChroniclerDetailContent() {
   async function handleSoftDelete() {
     if (!appUser) return;
     setDeleting(true);
-    await softDeleteContribution(id, appUser.uid);
+    await softDeleteContribution(id, appUser.uid, { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL });
     setDeleting(false);
     setDeleteOpen(false);
     router.replace("/chronicler/trash");
@@ -497,6 +523,37 @@ function ChroniclerDetailContent() {
                     </button>
                   ))}
               </div>
+            </div>
+          )}
+          {categories.length > 0 && (
+            <UserTagSelector
+              groups={categories}
+              selectedGroupIds={selectedCategories}
+              allUsers={allUsers}
+              currentUserId={appUser?.uid ?? ""}
+              taggedUserIds={taggedUserIds}
+              onChange={(ids) => { setTaggedUserIds(ids); setTaggedUserError(null); }}
+              label={t.taggedUsers.label}
+              noUsersLabel={t.taggedUsers.noUsers}
+            />
+          )}
+
+          {taggedUserError && (
+            <div className="rounded-xl border border-danger/40 bg-danger-dim p-3 space-y-2">
+              <p className="text-xs font-medium text-danger">{t.taggedUsers.validationError}</p>
+              <p className="text-xs text-danger/80">{taggedUserError.invalidNames.join(", ")}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setTaggedUserIds((prev) =>
+                    prev.filter((uid) => !taggedUserError.invalidIds.includes(uid))
+                  );
+                  setTaggedUserError(null);
+                }}
+                className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/10 transition-colors"
+              >
+                {t.taggedUsers.fixBtn}
+              </button>
             </div>
           )}
         </section>

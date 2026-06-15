@@ -195,7 +195,7 @@ function AdminContent() {
       ? cat.allowedUserIds.filter((id) => id !== userId)
       : [...cat.allowedUserIds, userId];
     setAccessUpdating(key);
-    await updateCategoryAccess(cat.id, updated);
+    await updateCategoryAccess(cat.id, updated, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     setAccessUpdating(null);
   }
 

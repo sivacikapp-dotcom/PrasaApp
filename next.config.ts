@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "prasaapp-b5944.firebasestorage.app" },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/firebase-messaging-sw.js",
+        destination: "/api/firebase-messaging-sw",
+      },
+    ];
+  },
   async headers() {
     return [
       {

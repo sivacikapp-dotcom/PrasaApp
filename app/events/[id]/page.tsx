@@ -12,7 +12,9 @@ import Link from "next/link";
 import { getEvent } from "@/lib/eventService";
 import { getContribution } from "@/lib/contributionService";
 import { getCategories } from "@/lib/categoryService";
+import { getAllUsers } from "@/lib/userService";
 import type { ChronicleEvent, Contribution, Group } from "@/types/contribution";
+import type { AppUser } from "@/types/user";
 
 // ── Entity model (mirrors chronicler editor) ──────────────────────────────────
 
@@ -72,6 +74,7 @@ function EventDetailContent() {
   const [event, setEvent] = useState<ChronicleEvent | null>(null);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [category, setCategory] = useState<Group | null>(null);
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
 
@@ -79,7 +82,8 @@ function EventDetailContent() {
     if (!appUser) return;
     async function load() {
       try {
-        const [ev, allCats] = await Promise.all([getEvent(id), getCategories()]);
+        const [ev, allCats, users] = await Promise.all([getEvent(id), getCategories(), getAllUsers()]);
+        setAllUsers(users);
         if (!ev) { setLoading(false); return; }
 
         if (ev.categoryId) {
@@ -185,6 +189,9 @@ function EventDetailContent() {
           <p className="text-sm text-ink-dim leading-relaxed">{event.description}</p>
         )}
 
+        {/* Tagged participants */}
+        <TaggedParticipants contributions={contributions} allUsers={allUsers} heading={t.eventDetail.taggedParticipants} />
+
         {/* Entity narrative */}
         {visibleEntities.length === 0 ? (
           <div className="rounded-xl border border-rim py-12 text-center">
@@ -258,6 +265,59 @@ function EventDetailContent() {
     </>
   );
 }
+
+// ── Tagged participants block ──────────────────────────────────────────────────
+
+function TaggedParticipants({
+  contributions,
+  allUsers,
+  heading,
+}: {
+  contributions: Contribution[];
+  allUsers: AppUser[];
+  heading: string;
+}) {
+  const taggedUidSet = new Set(contributions.flatMap((c) => c.taggedUserIds ?? []));
+  const taggedUsers = allUsers.filter((u) => taggedUidSet.has(u.uid));
+  if (taggedUsers.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-rim bg-surface px-4 py-3 space-y-2.5">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">{heading}</h2>
+      <div className="flex flex-wrap gap-2">
+        {taggedUsers.map((u) => (
+          <UserChip key={u.uid} user={u} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UserChip({ user }: { user: AppUser }) {
+  return (
+    <span className="flex items-center gap-1.5 rounded-full border border-rim bg-surface-high pl-0.5 pr-2.5 py-0.5">
+      {user.photoURL ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={user.photoURL}
+          alt={user.displayName}
+          width={22}
+          height={22}
+          referrerPolicy="no-referrer"
+          className="rounded-full object-cover shrink-0"
+          style={{ width: 22, height: 22 }}
+        />
+      ) : (
+        <span className="w-[22px] h-[22px] rounded-full bg-surface border border-rim flex items-center justify-center text-[9px] font-medium text-ink-subtle shrink-0">
+          {user.displayName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+        </span>
+      )}
+      <span className="text-xs text-ink">{user.displayName}</span>
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function buildDateLabel(ev: ChronicleEvent, locale: Locale): string | null {
   if (ev.dateFrom && ev.dateTo) {

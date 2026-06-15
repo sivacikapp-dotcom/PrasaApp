@@ -17,7 +17,10 @@ import { uploadPhoto, uploadVideo, uploadVoice } from "@/lib/storageService";
 import { getLocationName } from "@/lib/geocoding";
 import { savePending } from "@/lib/offlineDb";
 import { getCategories } from "@/lib/categoryService";
+import { getAllUsers } from "@/lib/userService";
+import { UserTagSelector } from "@/components/contributions/UserTagSelector";
 import type { Group } from "@/types/contribution";
+import type { AppUser } from "@/types/user";
 
 const INPUT_CLS =
   "w-full rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold";
@@ -40,15 +43,19 @@ function NewContributionForm() {
   const [accessibleGroups, setAccessibleGroups] = useState<Group[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set());
   const [noGroupConfirmed, setNoGroupConfirmed] = useState(false);
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
+  const [taggedUserIds, setTaggedUserIds] = useState<string[]>([]);
+  const [taggedUserError, setTaggedUserError] = useState<{ invalidIds: string[]; invalidNames: string[] } | null>(null);
 
   useEffect(() => { captureLocation(); }, [captureLocation]);
 
   useEffect(() => {
     if (!appUser) return;
-    getCategories().then((cats) => {
+    Promise.all([getCategories(), getAllUsers()]).then(([cats, users]) => {
       const mine = cats.filter((c) => c.allowedUserIds.includes(appUser.uid));
       setAccessibleGroups(mine);
       setSelectedCategoryIds(new Set(mine.map((c) => c.id)));
+      setAllUsers(users);
     });
   }, [appUser]);
 
@@ -107,8 +114,25 @@ function NewContributionForm() {
       setError(t.newContribution.errorNoGroup);
       return;
     }
+    // Validate tagged users are in the contribution's selected groups
+    if (taggedUserIds.length > 0) {
+      const allowedInSelectedGroups = new Set(
+        accessibleGroups
+          .filter((g) => selectedCategoryIds.has(g.id))
+          .flatMap((g) => g.allowedUserIds)
+      );
+      const invalidIds = taggedUserIds.filter((uid) => !allowedInSelectedGroups.has(uid));
+      if (invalidIds.length > 0) {
+        const invalidNames = invalidIds.map(
+          (uid) => allUsers.find((u) => u.uid === uid)?.displayName ?? uid
+        );
+        setTaggedUserError({ invalidIds, invalidNames });
+        return;
+      }
+    }
     setSaving(true);
     setError(null);
+    setTaggedUserError(null);
     try {
       const filteredTexts = texts.filter((t) => t.trim().length > 0);
       const loc = locState.status === "ok" ? locState.data : null;
@@ -154,6 +178,7 @@ function NewContributionForm() {
         locationName,
         categories: selectedGroupIds,
         visibleToIds,
+        taggedUserIds,
       });
 
       const photoUrls: string[] = [];
@@ -311,6 +336,38 @@ function NewContributionForm() {
                   </label>
                 </div>
               )}
+            </div>
+          )}
+
+          {appUser && accessibleGroups.length > 0 && (
+            <UserTagSelector
+              groups={accessibleGroups}
+              selectedGroupIds={Array.from(selectedCategoryIds)}
+              allUsers={allUsers}
+              currentUserId={appUser.uid}
+              taggedUserIds={taggedUserIds}
+              onChange={(ids) => { setTaggedUserIds(ids); setTaggedUserError(null); }}
+              label={t.taggedUsers.label}
+              noUsersLabel={t.taggedUsers.noUsers}
+            />
+          )}
+
+          {taggedUserError && (
+            <div className="rounded-xl border border-danger/40 bg-danger-dim p-3 space-y-2">
+              <p className="text-xs font-medium text-danger">{t.taggedUsers.validationError}</p>
+              <p className="text-xs text-danger/80">{taggedUserError.invalidNames.join(", ")}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setTaggedUserIds((prev) =>
+                    prev.filter((uid) => !taggedUserError.invalidIds.includes(uid))
+                  );
+                  setTaggedUserError(null);
+                }}
+                className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/10 transition-colors"
+              >
+                {t.taggedUsers.fixBtn}
+              </button>
             </div>
           )}
 

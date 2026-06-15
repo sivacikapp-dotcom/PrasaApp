@@ -13,7 +13,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { getContribution, updateContribution } from "@/lib/contributionService";
 import { uploadPhoto, uploadVoice, deleteFile } from "@/lib/storageService";
-import type { Contribution, VoiceNote } from "@/types/contribution";
+import { getCategories } from "@/lib/categoryService";
+import { getAllUsers } from "@/lib/userService";
+import { UserTagSelector } from "@/components/contributions/UserTagSelector";
+import type { Contribution, VoiceNote, Group } from "@/types/contribution";
+import type { AppUser } from "@/types/user";
 
 const INPUT_CLS =
   "w-full rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold";
@@ -37,26 +41,36 @@ function EditContributionForm() {
   const [newVoiceBlobs, setNewVoiceBlobs] = useState<{ blob: Blob; previewUrl: string }[]>([]);
   const [recorderKey, setRecorderKey] = useState(0);
 
+  const [accessibleGroups, setAccessibleGroups] = useState<Group[]>([]);
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
+  const [taggedUserIds, setTaggedUserIds] = useState<string[]>([]);
+  const [taggedUserError, setTaggedUserError] = useState<{ invalidIds: string[]; invalidNames: string[] } | null>(null);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getContribution(id).then((c) => {
+    if (!appUser) return;
+    Promise.all([getContribution(id), getCategories(), getAllUsers()]).then(([c, cats, users]) => {
+      setAllUsers(users);
       if (!c) { setLoading(false); return; }
-      if (c.status !== "pending" || c.contributorId !== appUser?.uid) {
+      if (c.status !== "pending" || c.contributorId !== appUser.uid) {
         setNotAllowed(true);
         setLoading(false);
         return;
       }
+      const mine = cats.filter((cat) => cat.allowedUserIds.includes(appUser.uid));
+      setAccessibleGroups(mine);
       setContribution(c);
       setEventDate(format(c.eventDate, "yyyy-MM-dd"));
       setTexts(c.texts.length > 0 ? c.texts : [""]);
       setExistingPhotos(c.photoUrls);
       setExistingVoices(c.voices);
+      setTaggedUserIds(c.taggedUserIds ?? []);
       setLoading(false);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, appUser]);
 
   function updateText(index: number, value: string) {
     setTexts((prev) => prev.map((txt, i) => (i === index ? value : txt)));
@@ -97,8 +111,25 @@ function EditContributionForm() {
       setError(t.contribEdit.minFieldsError);
       return;
     }
+    // Validate tagged users are in the contribution's groups
+    if (taggedUserIds.length > 0 && contribution) {
+      const allowedInContribGroups = new Set(
+        accessibleGroups
+          .filter((g) => contribution.categories.includes(g.id))
+          .flatMap((g) => g.allowedUserIds)
+      );
+      const invalidIds = taggedUserIds.filter((uid) => !allowedInContribGroups.has(uid));
+      if (invalidIds.length > 0) {
+        const invalidNames = invalidIds.map(
+          (uid) => allUsers.find((u) => u.uid === uid)?.displayName ?? uid
+        );
+        setTaggedUserError({ invalidIds, invalidNames });
+        return;
+      }
+    }
     setSaving(true);
     setError(null);
+    setTaggedUserError(null);
     try {
       await Promise.all(deletedVoiceUrls.map((url) => deleteFile(url)));
 
@@ -118,6 +149,7 @@ function EditContributionForm() {
         texts: filteredTexts,
         photoUrls: [...existingPhotos, ...uploadedPhotos],
         voices: [...existingVoices, ...uploadedVoices],
+        taggedUserIds,
       });
 
       router.push(`/dashboard/${id}`);
@@ -244,6 +276,38 @@ function EditContributionForm() {
               onRecorded={handleVoiceRecorded}
             />
           </div>
+
+          {appUser && accessibleGroups.length > 0 && contribution && (
+            <UserTagSelector
+              groups={accessibleGroups}
+              selectedGroupIds={contribution.categories}
+              allUsers={allUsers}
+              currentUserId={appUser.uid}
+              taggedUserIds={taggedUserIds}
+              onChange={(ids) => { setTaggedUserIds(ids); setTaggedUserError(null); }}
+              label={t.taggedUsers.label}
+              noUsersLabel={t.taggedUsers.noUsers}
+            />
+          )}
+
+          {taggedUserError && (
+            <div className="rounded-xl border border-danger/40 bg-danger-dim p-3 space-y-2">
+              <p className="text-xs font-medium text-danger">{t.taggedUsers.validationError}</p>
+              <p className="text-xs text-danger/80">{taggedUserError.invalidNames.join(", ")}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setTaggedUserIds((prev) =>
+                    prev.filter((uid) => !taggedUserError.invalidIds.includes(uid))
+                  );
+                  setTaggedUserError(null);
+                }}
+                className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/10 transition-colors"
+              >
+                {t.taggedUsers.fixBtn}
+              </button>
+            </div>
+          )}
 
           {error && <p className="text-sm text-danger">{error}</p>}
 

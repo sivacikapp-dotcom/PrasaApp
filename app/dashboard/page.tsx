@@ -16,6 +16,7 @@ import {
   useEventMembership,
   useMyDeletedContributions,
 } from "@/hooks/useContributions";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import type { Contribution } from "@/types/contribution";
 
 type MainTab = "mine" | "allProcessed" | "deleted";
@@ -62,7 +63,7 @@ function FilterGroup({
 }: {
   label: string;
   children: React.ReactNode;
-  sortOrder?: SortOrder;
+  sortOrder?: SortOrder | null;
   onSortToggle?: () => void;
 }) {
   const { t } = useI18n();
@@ -92,15 +93,29 @@ function FilterGroup({
 function DashboardContent() {
   const { appUser } = useAuth();
   const { t } = useI18n();
+  const { prefs, loading: prefsLoading } = useUserPreferences();
   const [tab, setTab] = useState<MainTab>("mine");
+
+  const prefSort: SortOrder = prefs.contributions.defaultSort === "asc" ? "dateAsc" : "dateDesc";
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [mineEventFilter, setMineEventFilter] = useState<EventFilter>("all");
-  const [mineSortOrder, setMineSortOrder] = useState<SortOrder>("dateDesc");
+  const [mineSortOrder, setMineSortOrder] = useState<SortOrder | null>(null);
 
   const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>("all");
   const [allEventFilter, setAllEventFilter] = useState<EventFilter>("all");
-  const [allSortOrder, setAllSortOrder] = useState<SortOrder>("dateDesc");
+  const [allSortOrder, setAllSortOrder] = useState<SortOrder | null>(null);
+
+  // Sync sort from preferences once loaded (only if user hasn't manually changed it this session)
+  const [sortSynced, setSortSynced] = useState(false);
+  if (!prefsLoading && !sortSynced) {
+    setMineSortOrder(prefSort);
+    setAllSortOrder(prefSort);
+    setSortSynced(true);
+  }
+
+  const activeMineSort = mineSortOrder ?? prefSort;
+  const activeAllSort = allSortOrder ?? prefSort;
 
   const uid = appUser?.uid;
   const { contributions: mine, loading: loadMine } = useMyContributions(uid);
@@ -117,7 +132,7 @@ function DashboardContent() {
     else if (statusFilter === "pending") r = r.filter((c) => c.status === "pending");
     if (mineEventFilter === "inEvent") r = r.filter((c) => eventIds.has(c.id));
     else if (mineEventFilter === "notInEvent") r = r.filter((c) => !eventIds.has(c.id));
-    return applySort(r, mineSortOrder);
+    return applySort(r, activeMineSort);
   })();
 
   const displayedAll = (() => {
@@ -126,7 +141,7 @@ function DashboardContent() {
     else if (ownershipFilter === "notMine") r = r.filter((c) => c.contributorId !== uid);
     if (allEventFilter === "inEvent") r = r.filter((c) => eventIds.has(c.id));
     else if (allEventFilter === "notInEvent") r = r.filter((c) => !eventIds.has(c.id));
-    return applySort(r, allSortOrder);
+    return applySort(r, activeAllSort);
   })();
 
   return (
@@ -180,8 +195,8 @@ function DashboardContent() {
             </FilterGroup>
             <FilterGroup
               label={t.dashboard.filterLabelEvent}
-              sortOrder={mineSortOrder}
-              onSortToggle={() => setMineSortOrder((o) => (o === "dateDesc" ? "dateAsc" : "dateDesc"))}
+              sortOrder={activeMineSort}
+              onSortToggle={() => setMineSortOrder((o) => ((o ?? prefSort) === "dateDesc" ? "dateAsc" : "dateDesc"))}
             >
               <FilterChip active={mineEventFilter === "all"} onClick={() => setMineEventFilter("all")}>
                 {t.dashboard.filterAll}
@@ -212,8 +227,8 @@ function DashboardContent() {
             </FilterGroup>
             <FilterGroup
               label={t.dashboard.filterLabelEvent}
-              sortOrder={allSortOrder}
-              onSortToggle={() => setAllSortOrder((o) => (o === "dateDesc" ? "dateAsc" : "dateDesc"))}
+              sortOrder={activeAllSort}
+              onSortToggle={() => setAllSortOrder((o) => ((o ?? prefSort) === "dateDesc" ? "dateAsc" : "dateDesc"))}
             >
               <FilterChip active={allEventFilter === "all"} onClick={() => setAllEventFilter("all")}>
                 {t.dashboard.filterAll}
@@ -237,7 +252,13 @@ function DashboardContent() {
           ) : (
             <div className="space-y-3">
               {displayedMine.map((c) => (
-                <ContributionCard key={c.id} contribution={c} href={`/dashboard/${c.id}`} />
+                <ContributionCard
+                  key={c.id}
+                  contribution={c}
+                  href={`/dashboard/${c.id}`}
+                  displayPrefs={prefs.contributions}
+                  currentUserId={uid}
+                />
               ))}
             </div>
           )
@@ -286,7 +307,13 @@ function DashboardContent() {
         ) : (
           <div className="space-y-3">
             {displayedAll.map((c) => (
-              <ContributionCard key={c.id} contribution={c} href={`/dashboard/${c.id}`} />
+              <ContributionCard
+                key={c.id}
+                contribution={c}
+                href={`/dashboard/${c.id}`}
+                displayPrefs={prefs.contributions}
+                currentUserId={uid}
+              />
             ))}
           </div>
         )}

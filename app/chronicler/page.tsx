@@ -342,6 +342,7 @@ function ChroniclerContent() {
       contributionIds: eventSourceIds,
       categoryId: eventCategoryId,
       createdBy: appUser.uid,
+      actor: { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL },
     });
     setCreatingEvent(false);
     setEventOpen(false);
@@ -352,7 +353,7 @@ function ChroniclerContent() {
   async function handleDeleteSelected() {
     if (!appUser) return;
     setDeletingSelected(true);
-    await batchSoftDelete(Array.from(selectedIds), appUser.uid);
+    await batchSoftDelete(Array.from(selectedIds), appUser.uid, { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL });
     setDeletingSelected(false);
     setDeleteSelectedOpen(false);
     exitSelectMode();
@@ -372,7 +373,7 @@ function ChroniclerContent() {
       setPendingEventConflict({ event: ev, compatible, conflicting });
       return;
     }
-    await addContributionsToEvent(ev.id, ids);
+    await addContributionsToEvent(ev.id, ids, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     setAddToEventOpen(false);
     exitSelectMode();
   }
@@ -392,7 +393,7 @@ function ChroniclerContent() {
         await updateContributionByChronicler(cid, { categories: [eventCatId], visibleToIds: newVisibleToIds });
       })
     );
-    await addContributionsToEvent(event.id, [...compatible, ...conflicting]);
+    await addContributionsToEvent(event.id, [...compatible, ...conflicting], appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     setPendingEventConflict(null);
     exitSelectMode();
   }
@@ -401,7 +402,7 @@ function ChroniclerContent() {
     if (!pendingEventConflict) return;
     const { event, compatible } = pendingEventConflict;
     if (compatible.length > 0) {
-      await addContributionsToEvent(event.id, compatible);
+      await addContributionsToEvent(event.id, compatible, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     }
     setPendingEventConflict(null);
     exitSelectMode();

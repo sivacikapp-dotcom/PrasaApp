@@ -13,7 +13,7 @@ const firebaseConfig = {
 };
 
 // Prevent duplicate app initialization in Next.js dev mode (hot reload)
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);

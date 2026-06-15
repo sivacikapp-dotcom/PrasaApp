@@ -105,7 +105,7 @@ function EventEditContent() {
   }
 
   async function handleAddContributions(ids: string[], _selectedContribs: Contribution[]) {
-    await addContributionsToEvent(id, ids);
+    await addContributionsToEvent(id, ids, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     const ev = await getEvent(id);
     if (!ev) return;
     setEvent(ev);
@@ -120,7 +120,7 @@ function EventEditContent() {
         !event?.contributionIds.includes(cid)
     );
     if (newIds.length === 0) return;
-    await addContributionsToEvent(id, newIds);
+    await addContributionsToEvent(id, newIds, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     const ev = await getEvent(id);
     if (!ev) return;
     setEvent(ev);

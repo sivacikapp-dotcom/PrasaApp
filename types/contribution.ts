@@ -41,6 +41,8 @@ export interface Contribution {
   deletedBy: string | null;
   // Access control: union of contributorId + allowedUserIds of assigned category
   visibleToIds: string[];
+  // Users tagged by the contributor or chronicler
+  taggedUserIds: string[];
   createdAt: Date;
   updatedAt: Date;
 }

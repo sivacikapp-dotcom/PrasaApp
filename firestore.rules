@@ -87,5 +87,14 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if isChronicler() || isAdmin();
     }
+
+    // ── notifications ─────────────────────────────────────────────────
+    match /notifications/{docId} {
+      // Any active user can create notifications (triggered by their own actions)
+      allow create: if isActive();
+      // Users can only read and update their own notifications
+      allow read: if isActive() && resource.data.userId == request.auth.uid;
+      allow update: if isActive() && resource.data.userId == request.auth.uid;
+    }
   }
 }
