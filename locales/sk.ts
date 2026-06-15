@@ -53,6 +53,7 @@ export const sk = {
     sortDateDesc: "Dátum ↓",
     sortDateAsc: "Dátum ↑",
     allProcessedEmpty: "Žiadne spracované príspevky.",
+    allProcessedEmptyHint: "Príspevky sa zobrazia po spracovaní kronikárom a ak máte prístup k danej skupine.",
     deletedEmpty: "Žiadne vymazané príspevky.",
     deletedRestoreHint: "Na obnovenie príspevku z koša kontaktujte kronikára.",
     filterLabelStatus: "Stav",
@@ -77,7 +78,9 @@ export const sk = {
     locationOk: "Lokalita zachytená",
     locationLoading: "Zachytávam polohu…",
     locationDenied: "Poloha nedostupná",
+    locationDeniedHint: "Povoľte polohu v nastaveniach prehliadača (Nastavenia → Ochrana súkromia → Poloha).",
     locationCapture: "Zachytiť polohu",
+    savedOffline: "Príspevok uložený lokálne. Odošle sa automaticky po obnovení pripojenia.",
     save: "Uložiť príspevok",
     errorMinFields:
       "Príspevok musí obsahovať aspoň 2 z týchto údajov: text, GPS poloha, fotografia, hlasová správa. Doplňte aspoň jeden ďalší údaj.",
@@ -86,6 +89,7 @@ export const sk = {
   },
   events: {
     title: "Udalosti",
+    searchPlaceholder: "Hľadať udalosti…",
     empty: "Žiadne dostupné udalosti.",
     noAccess: "Kronikár vám musí najprv sprístupniť skupinu.",
     contributionCount: (n: number): string => `${n} príspevkov`,
@@ -274,6 +278,8 @@ export const sk = {
       hasEvents
         ? "Žiadne udalosti nezodpovedajú filtrom."
         : "Žiadne udalosti. Vytvorte ich z príspevkov.",
+    submittedAgo: (n: number): string =>
+      n === 0 ? "Odovzdané dnes" : n === 1 ? "Odovzdané včera" : `Odovzdané pred ${n} dňami`,
     contributionPluralCount: (n: number): string =>
       `${n} ${n === 1 ? "príspevok" : n < 5 ? "príspevky" : "príspevkov"}`,
     trashBtn: "Kôš",

@@ -335,7 +335,13 @@ function ChroniclerDetailContent() {
       <main className="mx-auto max-w-2xl px-4 py-6 pb-28 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="text-ink-subtle hover:text-ink-dim">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) router.back();
+              else router.push("/chronicler");
+            }}
+            className="text-ink-subtle hover:text-ink-dim"
+          >
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 12H5M12 5l-7 7 7 7" /></svg>
           </button>
           <div className="flex-1">

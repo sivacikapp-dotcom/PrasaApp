@@ -26,12 +26,13 @@ interface ContributionCardProps {
   onSelect?: () => void;
   displayPrefs?: ContributionListPrefs;
   currentUserId?: string;
+  submittedAgoLabel?: string;
 }
 
 export function ContributionCard({
   contribution, href, categories = [], tags = [],
   selectable = false, selected = false, onSelect,
-  displayPrefs = SHOW_ALL, currentUserId,
+  displayPrefs = SHOW_ALL, currentUserId, submittedAgoLabel,
 }: ContributionCardProps) {
   const { t, dateFnsLocale } = useI18n();
   const c = contribution;
@@ -74,6 +75,9 @@ export function ContributionCard({
               </p>
               {displayPrefs.showContributor && (
                 <p className="text-xs text-ink-subtle mt-0.5">{c.contributorName}</p>
+              )}
+              {submittedAgoLabel && (
+                <p className="text-[10px] text-ink-subtle/60 mt-0.5">{submittedAgoLabel}</p>
               )}
             </div>
           </div>

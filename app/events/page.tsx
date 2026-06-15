@@ -22,6 +22,7 @@ function EventsContent() {
   const [events, setEvents] = useState<ChronicleEvent[]>([]);
   const [categories, setCategories] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!appUser) return;
@@ -39,7 +40,14 @@ function EventsContent() {
     load();
   }, [appUser]);
 
-  const sortedEvents = [...events].sort((a, b) => {
+  const filteredEvents = search.trim()
+    ? events.filter((ev) => {
+        const q = search.toLowerCase();
+        return ev.title.toLowerCase().includes(q) || (ev.description ?? "").toLowerCase().includes(q) || (ev.locationName ?? "").toLowerCase().includes(q);
+      })
+    : events;
+
+  const sortedEvents = [...filteredEvents].sort((a, b) => {
     const aDate = a.dateFrom ?? a.createdAt;
     const bDate = b.dateFrom ?? b.createdAt;
     const diff = aDate.getTime() - bDate.getTime();
@@ -50,17 +58,37 @@ function EventsContent() {
     <>
       <NavBar />
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24 space-y-4">
-        <h1 className="text-lg font-semibold text-ink">{t.events.title}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="flex-1 text-lg font-semibold text-ink">{t.events.title}</h1>
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-subtle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="search"
+              placeholder={t.events.searchPlaceholder}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-52 rounded-xl border border-rim bg-surface pl-9 pr-3 py-1.5 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+            />
+          </div>
+        </div>
 
         {loading ? (
           <PageSpinner />
-        ) : events.length === 0 ? (
+        ) : sortedEvents.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface">
               <CalendarIcon className="h-7 w-7 text-ink-subtle" />
             </div>
-            <p className="text-sm text-ink-dim">{t.events.empty}</p>
-            <p className="text-xs text-ink-subtle">{t.events.noAccess}</p>
+            {search.trim() ? (
+              <p className="text-sm text-ink-dim">{t.chronicler.noMatchFilters}</p>
+            ) : (
+              <>
+                <p className="text-sm text-ink-dim">{t.events.empty}</p>
+                <p className="text-xs text-ink-subtle">{t.events.noAccess}</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

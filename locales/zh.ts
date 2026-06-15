@@ -53,6 +53,7 @@ export const zh: Dictionary = {
     sortDateDesc: "日期 ↓",
     sortDateAsc: "日期 ↑",
     allProcessedEmpty: "没有可访问的已处理贡献。",
+    allProcessedEmptyHint: "贡献经记录员处理后且您有群组访问权限时才会显示。",
     tabDeleted: "已删除",
     deletedEmpty: "没有已删除的贡献。",
     deletedRestoreHint: "如需从回收站恢复贡献，请联系记录员。",
@@ -77,7 +78,9 @@ export const zh: Dictionary = {
     locationOk: "位置已获取",
     locationLoading: "正在获取位置…",
     locationDenied: "位置不可用",
+    locationDeniedHint: "请在浏览器设置中开启位置权限（设置 → 隐私 → 位置）。",
     locationCapture: "获取位置",
+    savedOffline: "贡献已保存至本地，恢复连接后将自动上传。",
     save: "保存贡献",
     errorMinFields:
       "贡献必须包含以下至少 2 项：文字、GPS 位置、照片、语音消息。请再添加至少一项。",
@@ -86,6 +89,7 @@ export const zh: Dictionary = {
   },
   events: {
     title: "活动",
+    searchPlaceholder: "搜索活动…",
     empty: "暂无可用活动。",
     noAccess: "记录员需先为您开放群组权限。",
     contributionCount: (n) => `${n} 条贡献`,
@@ -270,6 +274,8 @@ export const zh: Dictionary = {
       hasEvents
         ? "没有符合筛选条件的活动。"
         : "暂无活动，请从贡献中创建。",
+    submittedAgo: (n) =>
+      n === 0 ? "今天提交" : n === 1 ? "昨天提交" : `${n} 天前提交`,
     contributionPluralCount: (n) => `${n} 条贡献`,
     trashBtn: "回收站",
     deleteSelectedBtn: "删除选中",

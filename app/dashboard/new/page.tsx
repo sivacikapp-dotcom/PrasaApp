@@ -154,6 +154,7 @@ function NewContributionForm() {
         photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
         videos.forEach((v) => URL.revokeObjectURL(v.previewUrl));
         voiceBlobs.forEach(({ previewUrl }) => URL.revokeObjectURL(previewUrl));
+        sessionStorage.setItem("pwa-offline-saved", "1");
         router.push("/dashboard");
         return;
       }
@@ -376,7 +377,12 @@ function NewContributionForm() {
               <span className="flex items-center gap-1.5 text-success"><PinIcon /> {t.newContribution.locationOk}</span>
             )}
             {locState.status === "loading" && <span className="text-ink-subtle">{t.newContribution.locationLoading}</span>}
-            {locState.status === "denied" && <span className="text-ink-subtle">{t.newContribution.locationDenied}</span>}
+            {locState.status === "denied" && (
+              <span className="flex flex-col gap-0.5">
+                <span className="text-ink-subtle">{t.newContribution.locationDenied}</span>
+                <span className="text-[11px] text-ink-subtle/70">{t.newContribution.locationDeniedHint}</span>
+              </span>
+            )}
             {locState.status === "idle" && (
               <button type="button" onClick={captureLocation} className="text-gold hover:underline">
                 {t.newContribution.locationCapture}

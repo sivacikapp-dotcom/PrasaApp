@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { differenceInDays, startOfDay } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NavBar } from "@/components/NavBar";
@@ -729,18 +730,22 @@ function ChroniclerContent() {
             </div>
           ) : (
             <div className="space-y-3">
-              {displayed.map((c) => (
-                <ContributionCard
-                  key={c.id}
-                  contribution={c}
-                  href={`/chronicler/${c.id}`}
-                  categories={categories}
-                  tags={tags}
-                  selectable={selectMode}
-                  selected={selectedIds.has(c.id)}
-                  onSelect={() => toggleSelect(c.id)}
-                />
-              ))}
+              {displayed.map((c) => {
+                const daysAgo = differenceInDays(startOfDay(new Date()), startOfDay(c.createdAt));
+                return (
+                  <ContributionCard
+                    key={c.id}
+                    contribution={c}
+                    href={`/chronicler/${c.id}`}
+                    categories={categories}
+                    tags={tags}
+                    selectable={selectMode}
+                    selected={selectedIds.has(c.id)}
+                    onSelect={() => toggleSelect(c.id)}
+                    submittedAgoLabel={t.chronicler.submittedAgo(daysAgo)}
+                  />
+                );
+              })}
             </div>
           )}
         </section>

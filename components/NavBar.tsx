@@ -43,7 +43,7 @@ export function NavBar() {
       show: isChronicler,
       badge: pendingCount > 0 ? pendingCount : undefined,
     },
-    { href: "/admin", label: t.nav.admin, show: isAdmin || isChronicler },
+    { href: "/admin", label: t.nav.admin, show: isAdmin },
   ];
 
   useEffect(() => {
@@ -91,14 +91,15 @@ export function NavBar() {
           <div className="ml-2 flex shrink-0 items-center gap-2">
             {/* Offline / pending upload indicator */}
             {!isOnline && (
-              <span title={t.nav.offlineTitle} className="flex items-center gap-1 text-xs text-ink-subtle">
+              <span className="flex items-center gap-1 rounded-md bg-surface px-2 py-0.5 text-xs text-ink-subtle" title={t.nav.offlineTitle}>
                 <CloudOffIcon />
+                <span className="hidden sm:inline">Offline</span>
               </span>
             )}
             {isOnline && offlineCount > 0 && (
-              <span title={t.nav.pendingUpload(offlineCount)} className="flex items-center gap-1 text-xs text-gold">
+              <span className="flex items-center gap-1 rounded-md bg-gold-dim px-2 py-0.5 text-xs text-gold" title={t.nav.pendingUpload(offlineCount)}>
                 <CloudUpIcon />
-                <span className="text-[10px] font-bold">{offlineCount}</span>
+                <span className="font-semibold">{offlineCount}</span>
               </span>
             )}
 

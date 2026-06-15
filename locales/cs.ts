@@ -53,6 +53,7 @@ export const cs: Dictionary = {
     sortDateDesc: "Datum ↓",
     sortDateAsc: "Datum ↑",
     allProcessedEmpty: "Žádné zpracované příspěvky.",
+    allProcessedEmptyHint: "Příspěvky se zobrazí po zpracování kronikářem a pokud máte přístup ke dané skupině.",
     tabDeleted: "Smazané",
     deletedEmpty: "Žádné smazané příspěvky.",
     deletedRestoreHint: "Chcete-li příspěvek z koše obnovit, kontaktujte kronikáře.",
@@ -78,7 +79,9 @@ export const cs: Dictionary = {
     locationOk: "Poloha zachycena",
     locationLoading: "Zachycuji polohu…",
     locationDenied: "Poloha nedostupná",
+    locationDeniedHint: "Povolte polohu v nastavení prohlížeče (Nastavení → Soukromí → Poloha).",
     locationCapture: "Zachytit polohu",
+    savedOffline: "Příspěvek uložen lokálně. Bude odeslán automaticky po obnovení připojení.",
     save: "Uložit příspěvek",
     errorMinFields:
       "Příspěvek musí obsahovat alespoň 2 z těchto údajů: text, GPS poloha, fotografie, hlasová zpráva. Doplňte alespoň jeden další údaj.",
@@ -87,6 +90,7 @@ export const cs: Dictionary = {
   },
   events: {
     title: "Události",
+    searchPlaceholder: "Hledat události…",
     empty: "Žádné dostupné události.",
     noAccess: "Kronikář vám musí nejprve zpřístupnit skupinu.",
     contributionCount: (n: number) =>
@@ -277,6 +281,8 @@ export const cs: Dictionary = {
       hasEvents
         ? "Žádné události neodpovídají filtrům."
         : "Žádné události. Vytvořte je z příspěvků.",
+    submittedAgo: (n: number) =>
+      n === 0 ? "Odesláno dnes" : n === 1 ? "Odesláno včera" : `Odesláno před ${n} dny`,
     contributionPluralCount: (n: number) =>
       `${n} ${n === 1 ? "příspěvek" : n < 5 ? "příspěvky" : "příspěvků"}`,
     trashBtn: "Koš",

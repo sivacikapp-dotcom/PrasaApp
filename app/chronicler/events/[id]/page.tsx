@@ -17,7 +17,7 @@ import {
   updateEvent,
   addContributionsToEvent,
   removeContributionFromEvent,
-  deleteEvent,
+  softDeleteEvent,
   setEventHiddenItems,
   setEventEntityOrder,
   addEventEditor,
@@ -224,7 +224,7 @@ function EventDetailContent() {
 
   async function handleDelete() {
     setDeleting(true);
-    await deleteEvent(id);
+    await softDeleteEvent(id);
     router.replace("/chronicler");
   }
 
@@ -289,7 +289,7 @@ function EventDetailContent() {
       <main className="mx-auto max-w-2xl px-4 py-6 pb-28 space-y-6">
         {/* Back */}
         <div className="flex items-center gap-2">
-          <button onClick={() => router.back()} className="rounded-lg p-1.5 text-ink-subtle hover:text-ink">
+          <button onClick={() => { if (window.history.length > 1) router.back(); else router.push("/chronicler"); }} className="rounded-lg p-1.5 text-ink-subtle hover:text-ink">
             <BackIcon />
           </button>
           <h1 className="flex-1 text-base font-semibold text-ink truncate">{event.title}</h1>

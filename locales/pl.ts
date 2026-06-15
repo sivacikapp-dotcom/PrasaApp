@@ -53,6 +53,7 @@ export const pl: Dictionary = {
     sortDateDesc: "Data ↓",
     sortDateAsc: "Data ↑",
     allProcessedEmpty: "Brak przetworzonych postów.",
+    allProcessedEmptyHint: "Posty pojawią się po przetworzeniu przez kronikarza i gdy masz dostęp do danej grupy.",
     tabDeleted: "Usunięte",
     deletedEmpty: "Brak usuniętych postów.",
     deletedRestoreHint: "Aby przywrócić post z kosza, skontaktuj się z kronikarzem.",
@@ -78,7 +79,9 @@ export const pl: Dictionary = {
     locationOk: "Lokalizacja zarejestrowana",
     locationLoading: "Przechwytywanie lokalizacji…",
     locationDenied: "Lokalizacja niedostępna",
+    locationDeniedHint: "Włącz lokalizację w ustawieniach przeglądarki (Ustawienia → Prywatność → Lokalizacja).",
     locationCapture: "Zarejestruj lokalizację",
+    savedOffline: "Post zapisany lokalnie. Zostanie wysłany automatycznie po przywróceniu połączenia.",
     save: "Zapisz post",
     errorMinFields:
       "Post musi zawierać co najmniej 2 z tych danych: tekst, lokalizacja GPS, zdjęcie, wiadomość głosowa. Dodaj co najmniej jeden kolejny element.",
@@ -87,6 +90,7 @@ export const pl: Dictionary = {
   },
   events: {
     title: "Zdarzenia",
+    searchPlaceholder: "Szukaj zdarzeń…",
     empty: "Brak dostępnych zdarzeń.",
     noAccess: "Kronikarz musi najpierw udostępnić ci grupę.",
     contributionCount: (n: number) =>
@@ -275,6 +279,8 @@ export const pl: Dictionary = {
       hasEvents
         ? "Żadne zdarzenia nie pasują do filtrów."
         : "Brak zdarzeń. Utwórz je z postów.",
+    submittedAgo: (n: number) =>
+      n === 0 ? "Przesłano dzisiaj" : n === 1 ? "Przesłano wczoraj" : `Przesłano ${n} dni temu`,
     contributionPluralCount: (n: number) =>
       `${n} ${n === 1 ? "post" : "postów"}`,
     trashBtn: "Kosz",

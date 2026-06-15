@@ -54,6 +54,7 @@ export const fr: Dictionary = {
     sortDateDesc: "Date ↓",
     sortDateAsc: "Date ↑",
     allProcessedEmpty: "Aucune contribution traitée.",
+    allProcessedEmptyHint: "Les contributions apparaissent ici une fois traitées par le chroniqueur et si vous avez accès au groupe.",
     tabDeleted: "Supprimées",
     deletedEmpty: "Aucune contribution supprimée.",
     deletedRestoreHint: "Pour restaurer une contribution depuis la corbeille, veuillez contacter le chroniqueur.",
@@ -79,7 +80,9 @@ export const fr: Dictionary = {
     locationOk: "Localisation capturée",
     locationLoading: "Capture de la position…",
     locationDenied: "Position indisponible",
+    locationDeniedHint: "Activez la localisation dans les paramètres du navigateur (Paramètres → Confidentialité → Localisation).",
     locationCapture: "Capturer la position",
+    savedOffline: "Contribution enregistrée localement. Elle sera envoyée automatiquement à la reconnexion.",
     save: "Enregistrer la contribution",
     errorMinFields:
       "La contribution doit contenir au moins 2 de ces éléments : texte, position GPS, photo, message vocal. Veuillez ajouter au moins un élément supplémentaire.",
@@ -90,6 +93,7 @@ export const fr: Dictionary = {
   },
   events: {
     title: "Événements",
+    searchPlaceholder: "Rechercher des événements…",
     empty: "Aucun événement disponible.",
     noAccess: "Un chroniqueur doit d'abord vous donner accès à un groupe.",
     contributionCount: (n) => `${n} contribution${n > 1 ? "s" : ""}`,
@@ -282,6 +286,8 @@ export const fr: Dictionary = {
       hasEvents
         ? "Aucun événement ne correspond aux filtres."
         : "Aucun événement. Créez-en à partir des contributions.",
+    submittedAgo: (n) =>
+      n === 0 ? "Soumis aujourd'hui" : n === 1 ? "Soumis hier" : `Soumis il y a ${n} jours`,
     contributionPluralCount: (n) =>
       `${n} contribution${n > 1 ? "s" : ""}`,
     trashBtn: "Corbeille",

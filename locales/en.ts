@@ -53,6 +53,7 @@ export const en: Dictionary = {
     sortDateDesc: "Date ↓",
     sortDateAsc: "Date ↑",
     allProcessedEmpty: "No processed contributions.",
+    allProcessedEmptyHint: "Contributions appear here once a chronicler processes them and you have access to the group.",
     tabDeleted: "Deleted",
     deletedEmpty: "No deleted contributions.",
     deletedRestoreHint: "To restore a contribution from the trash, please contact the chronicler.",
@@ -77,7 +78,9 @@ export const en: Dictionary = {
     locationOk: "Location captured",
     locationLoading: "Capturing location…",
     locationDenied: "Location unavailable",
+    locationDeniedHint: "Enable location in your browser settings (Settings → Privacy → Location).",
     locationCapture: "Capture location",
+    savedOffline: "Contribution saved locally. It will be uploaded automatically when connection is restored.",
     save: "Save contribution",
     errorMinFields:
       "Contribution must contain at least 2 of: text, GPS location, photo, voice message. Please add at least one more item.",
@@ -86,6 +89,7 @@ export const en: Dictionary = {
   },
   events: {
     title: "Events",
+    searchPlaceholder: "Search events…",
     empty: "No events available.",
     noAccess: "A chronicler must first grant you access to a group.",
     contributionCount: (n) => `${n} contribution${n === 1 ? "" : "s"}`,
@@ -273,6 +277,8 @@ export const en: Dictionary = {
       hasEvents
         ? "No events match the filters."
         : "No events. Create them from contributions.",
+    submittedAgo: (n) =>
+      n === 0 ? "Submitted today" : n === 1 ? "Submitted yesterday" : `Submitted ${n} days ago`,
     contributionPluralCount: (n) =>
       `${n} contribution${n === 1 ? "" : "s"}`,
     trashBtn: "Trash",

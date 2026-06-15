@@ -95,6 +95,17 @@ function DashboardContent() {
   const { t } = useI18n();
   const { prefs, loading: prefsLoading } = useUserPreferences();
   const [tab, setTab] = useState<MainTab>("mine");
+  const [offlineBanner, setOfflineBanner] = useState(false);
+
+  // Show banner when redirected after offline save
+  const [bannerChecked, setBannerChecked] = useState(false);
+  if (!bannerChecked) {
+    setBannerChecked(true);
+    if (typeof window !== "undefined" && sessionStorage.getItem("pwa-offline-saved")) {
+      sessionStorage.removeItem("pwa-offline-saved");
+      setOfflineBanner(true);
+    }
+  }
 
   const prefSort: SortOrder = prefs.contributions.defaultSort === "asc" ? "dateAsc" : "dateDesc";
 
@@ -150,6 +161,19 @@ function DashboardContent() {
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
         <QuickCapture />
 
+        {offlineBanner && (
+          <div className="mb-2 flex items-start gap-2 rounded-xl border border-gold/40 bg-gold-dim px-3 py-2.5 text-xs text-ink-dim">
+            <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 0 1 0 9Z" />
+              <polyline points="12 12 12 8 10 10" /><line x1="12" y1="8" x2="14" y2="10" />
+            </svg>
+            <span className="flex-1">{t.newContribution.savedOffline}</span>
+            <button onClick={() => setOfflineBanner(false)} className="shrink-0 text-ink-subtle hover:text-ink">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          </div>
+        )}
+
         {/* Main Tabs */}
         <div className="mb-4 flex rounded-xl border border-rim bg-surface p-1">
           {(["mine", "allProcessed"] as MainTab[]).map((tabKey) => (
@@ -167,16 +191,18 @@ function DashboardContent() {
                 : t.dashboard.allProcessedContributions}
             </button>
           ))}
-          <button
-            onClick={() => setTab("deleted")}
-            className={`flex-[1] rounded-lg py-1.5 text-xs font-medium transition-colors ${
-              tab === "deleted"
-                ? "bg-danger text-white shadow-sm"
-                : "text-danger/70 hover:text-danger"
-            }`}
-          >
-            {t.dashboard.tabDeleted}
-          </button>
+          {(tab === "deleted" || loadDeleted || deleted.length > 0) && (
+            <button
+              onClick={() => setTab("deleted")}
+              className={`flex-[1] rounded-lg py-1.5 text-xs font-medium transition-colors ${
+                tab === "deleted"
+                  ? "bg-danger text-white shadow-sm"
+                  : "text-danger/70 hover:text-danger"
+              }`}
+            >
+              {t.dashboard.tabDeleted}
+            </button>
+          )}
         </div>
 
         {/* Filters: Moje príspevky */}
@@ -303,6 +329,7 @@ function DashboardContent() {
               </svg>
             </div>
             <p className="text-sm text-ink-dim">{t.dashboard.allProcessedEmpty}</p>
+            <p className="text-xs text-ink-subtle max-w-xs">{t.dashboard.allProcessedEmptyHint}</p>
           </div>
         ) : (
           <div className="space-y-3">

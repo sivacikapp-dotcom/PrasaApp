@@ -45,6 +45,7 @@ function fromFirestore(id: string, data: Record<string, unknown>): ChronicleEven
     createdBy: (data.createdBy as string) ?? "",
     createdAt: tsToDate(data.createdAt),
     updatedAt: tsToDate(data.updatedAt),
+    deletedAt: data.deletedAt ? tsToDate(data.deletedAt) : null,
   };
 }
 
@@ -363,6 +364,13 @@ export async function deleteEvent(id: string): Promise<void> {
   await deleteDoc(doc(db, "events", id));
 }
 
+export async function softDeleteEvent(id: string): Promise<void> {
+  await updateDoc(doc(db, "events", id), {
+    deletedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 // ── Real-time ────────────────────────────────────────────────────────────────
 
 export function subscribeToEvents(
@@ -371,7 +379,11 @@ export function subscribeToEvents(
   return onSnapshot(
     query(collection(db, "events"), orderBy("createdAt", "desc")),
     (snap) =>
-      cb(snap.docs.map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>)))
+      cb(
+        snap.docs
+          .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
+          .filter((ev) => ev.deletedAt === null)
+      )
   );
 }
 
@@ -379,5 +391,7 @@ export async function getEvents(): Promise<ChronicleEvent[]> {
   const snap = await getDocs(
     query(collection(db, "events"), orderBy("createdAt", "desc"))
   );
-  return snap.docs.map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>));
+  return snap.docs
+    .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
+    .filter((ev) => ev.deletedAt === null);
 }
