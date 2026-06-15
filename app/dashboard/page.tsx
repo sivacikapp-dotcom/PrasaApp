@@ -16,6 +16,10 @@ import {
   useEventMembership,
   useMyDeletedContributions,
 } from "@/hooks/useContributions";
+import {
+  restoreContribution,
+  permanentlyDeleteContribution,
+} from "@/lib/contributionService";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import type { Contribution } from "@/types/contribution";
 
@@ -133,6 +137,7 @@ function DashboardContent() {
   const { contributions: allProcessed, loading: loadAllProcessed } =
     useProcessedAccessibleContributions(uid);
   const { contributions: deleted, loading: loadDeleted } = useMyDeletedContributions(uid);
+  const [removedDeletedIds, setRemovedDeletedIds] = useState<Set<string>>(new Set());
   const eventIds = useEventMembership();
 
   const loading = tab === "mine" ? loadMine : tab === "allProcessed" ? loadAllProcessed : loadDeleted;
@@ -309,9 +314,17 @@ function DashboardContent() {
               </div>
             ) : (
               <div className="space-y-2">
-                {deleted.map((c) => (
-                  <DeletedContributionRow key={c.id} contribution={c} />
-                ))}
+                {deleted
+                  .filter((c) => !removedDeletedIds.has(c.id))
+                  .map((c) => (
+                    <DeletedContributionRow
+                      key={c.id}
+                      contribution={c}
+                      onRemove={(id) =>
+                        setRemovedDeletedIds((prev) => new Set([...prev, id]))
+                      }
+                    />
+                  ))}
               </div>
             )}
           </>
@@ -367,11 +380,32 @@ function DashboardContent() {
   );
 }
 
-function DeletedContributionRow({ contribution }: { contribution: Contribution }) {
+function DeletedContributionRow({
+  contribution,
+  onRemove,
+}: {
+  contribution: Contribution;
+  onRemove: (id: string) => void;
+}) {
   const { t, dateFnsLocale } = useI18n();
+  const [busy, setBusy] = useState<"restore" | "delete" | null>(null);
   const c = contribution;
   const displayDate = c.verifiedEventDate ?? c.eventDate;
   const deletedDate = c.deletedAt ?? c.updatedAt;
+
+  async function handleRestore() {
+    setBusy("restore");
+    await restoreContribution(c.id);
+    onRemove(c.id);
+  }
+
+  async function handlePermanentDelete() {
+    if (!window.confirm(t.trash.permanentDeleteTitle)) return;
+    setBusy("delete");
+    await permanentlyDeleteContribution(c.id);
+    onRemove(c.id);
+  }
+
   return (
     <div className="rounded-xl border border-danger/20 bg-surface p-3 space-y-1">
       <div className="flex items-start justify-between gap-2">
@@ -392,6 +426,22 @@ function DeletedContributionRow({ contribution }: { contribution: Contribution }
       ) : (
         <p className="text-sm text-ink-subtle italic">{t.trash.noText}</p>
       )}
+      <div className="flex gap-2 pt-1">
+        <button
+          onClick={handleRestore}
+          disabled={busy !== null}
+          className="flex-1 rounded-lg border border-rim bg-surface-high py-1.5 text-xs font-medium text-ink-dim hover:text-ink disabled:opacity-40 transition-colors"
+        >
+          {busy === "restore" ? "…" : t.trash.restoreBtn}
+        </button>
+        <button
+          onClick={handlePermanentDelete}
+          disabled={busy !== null}
+          className="flex-1 rounded-lg border border-danger/30 py-1.5 text-xs font-medium text-danger/70 hover:text-danger disabled:opacity-40 transition-colors"
+        >
+          {busy === "delete" ? "…" : t.trash.permanentDeleteConfirm}
+        </button>
+      </div>
     </div>
   );
 }

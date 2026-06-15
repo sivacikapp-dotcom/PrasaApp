@@ -306,6 +306,7 @@ function ChroniclerDetailContent() {
         createdBy: appUser.uid,
         createdAt: new Date(),
         updatedAt: new Date(),
+        deletedAt: null,
       } as ChronicleEvent,
     ]);
     setAssignedFeedback(t.chroniclerDetail.eventCreatedFeedback(title));
