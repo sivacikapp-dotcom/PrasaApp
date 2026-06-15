@@ -11,11 +11,12 @@ import { Badge } from "@/components/ui/Badge";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { VoiceRecorder } from "@/components/contributions/VoiceRecorder";
 import { PhotoUploader, type PhotoFile } from "@/components/contributions/PhotoUploader";
-import { getContribution, updateContributionByChronicler } from "@/lib/contributionService";
+import { getContribution, updateContributionByChronicler, softDeleteContribution } from "@/lib/contributionService";
 import { getCategories, getTags } from "@/lib/categoryService";
 import { uploadChroniclerPhoto, uploadChroniclerVoice } from "@/lib/storageService";
 import { addContributionsToGroup, getEventGroups } from "@/lib/eventGroupService";
 import { addContributionsToEvent, createEvent, getEvents, removeContributionFromEvent, updateEvent } from "@/lib/eventService";
+import { ConfirmModal } from "@/components/ui/Modal";
 import { GroupPickerModal } from "@/components/ui/GroupPickerModal";
 import { EventPickerModal } from "@/components/ui/EventPickerModal";
 import { EventGroupConflictModal } from "@/components/ui/EventGroupConflictModal";
@@ -52,6 +53,8 @@ function ChroniclerDetailContent() {
   const [transcribingChroniclerVoice, setTranscribingChroniclerVoice] = useState(false);
   const [transcribeVoiceError, setTranscribeVoiceError] = useState<{ index: number; msg: string } | null>(null);
   const [transcribeChroniclerError, setTranscribeChroniclerError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
   const [eventPickerOpen, setEventPickerOpen] = useState(false);
   const [assignedFeedback, setAssignedFeedback] = useState<string | null>(null);
@@ -281,6 +284,15 @@ function ChroniclerDetailContent() {
     ]);
     setAssignedFeedback(t.chroniclerDetail.eventCreatedFeedback(title));
     setTimeout(() => setAssignedFeedback(null), 4000);
+  }
+
+  async function handleSoftDelete() {
+    if (!appUser) return;
+    setDeleting(true);
+    await softDeleteContribution(id, appUser.uid);
+    setDeleting(false);
+    setDeleteOpen(false);
+    router.replace("/chronicler/trash");
   }
 
   if (loading) return <><NavBar /><PageSpinner /></>;
@@ -548,15 +560,32 @@ function ChroniclerDetailContent() {
       </main>
 
       {/* Sticky action bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-rim px-4 py-3 flex gap-3">
-        <Button variant="secondary" className="flex-1" loading={saving} onClick={() => handleSave(false)}>
-          {saved ? t.chroniclerDetail.savedBtn : t.chroniclerDetail.saveBtn}
-        </Button>
-        <Button variant="primary" className="flex-1" loading={saving} onClick={() => handleSave(true)}>
-          {t.chroniclerDetail.markProcessedBtn}
-        </Button>
+      <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-rim px-4 py-3 space-y-2">
+        <div className="flex gap-3">
+          <Button variant="secondary" className="flex-1" loading={saving} onClick={() => handleSave(false)}>
+            {saved ? t.chroniclerDetail.savedBtn : t.chroniclerDetail.saveBtn}
+          </Button>
+          <Button variant="primary" className="flex-1" loading={saving} onClick={() => handleSave(true)}>
+            {t.chroniclerDetail.markProcessedBtn}
+          </Button>
+        </div>
+        <button
+          onClick={() => setDeleteOpen(true)}
+          className="w-full rounded-xl border border-danger/40 bg-danger-dim py-2 text-sm font-medium text-danger hover:bg-danger/20 transition-colors"
+        >
+          {t.chronicler.softDeleteTitle}
+        </button>
       </div>
 
+      <ConfirmModal
+        open={deleteOpen}
+        title={t.chronicler.softDeleteTitle}
+        message={t.chronicler.softDeleteMessage}
+        confirmLabel={t.chronicler.softDeleteConfirm}
+        onConfirm={handleSoftDelete}
+        onClose={() => setDeleteOpen(false)}
+        danger
+      />
       <GroupPickerModal
         open={groupPickerOpen}
         onConfirm={handleAssignToGroup}

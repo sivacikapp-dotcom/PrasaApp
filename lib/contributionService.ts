@@ -61,6 +61,8 @@ function fromFirestore(id: string, data: Record<string, unknown>): Contribution 
       ? [data.eventGroupId as string]
       : [],
     status: (data.status as ContributionStatus) ?? "pending",
+    deletedAt: data.deletedAt ? tsToDate(data.deletedAt) : null,
+    deletedBy: (data.deletedBy as string | null) ?? null,
     visibleToIds: (data.visibleToIds as string[]) ?? [],
     createdAt: tsToDate(data.createdAt),
     updatedAt: tsToDate(data.updatedAt),
@@ -98,6 +100,8 @@ export async function createContribution(input: NewContributionInput): Promise<s
     hashtags: [],
     eventGroupIds: [],
     status: "pending",
+    deletedAt: null,
+    deletedBy: null,
     visibleToIds: input.visibleToIds ?? [input.contributorId],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -116,7 +120,9 @@ export async function getAllContributions(): Promise<Contribution[]> {
   const snap = await getDocs(
     query(collection(db, "contributions"), orderBy("eventDate", "asc"))
   );
-  return snap.docs.map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>));
+  return snap.docs
+    .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
+    .filter((c) => c.status !== "deleted");
 }
 
 export async function getContributionsByUser(uid: string): Promise<Contribution[]> {
@@ -125,6 +131,7 @@ export async function getContributionsByUser(uid: string): Promise<Contribution[
   );
   return snap.docs
     .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
+    .filter((c) => c.status !== "deleted")
     .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
 }
 
@@ -172,6 +179,41 @@ export async function updateContributionByChronicler(
   await updateDoc(doc(db, "contributions", id), payload);
 }
 
+export async function softDeleteContribution(id: string, deletedBy: string): Promise<void> {
+  await updateDoc(doc(db, "contributions", id), {
+    status: "deleted",
+    deletedAt: serverTimestamp(),
+    deletedBy,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function restoreContribution(id: string): Promise<void> {
+  await updateDoc(doc(db, "contributions", id), {
+    status: "pending",
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function permanentlyDeleteContribution(id: string): Promise<void> {
+  await deleteDoc(doc(db, "contributions", id));
+}
+
+export async function batchSoftDelete(ids: string[], deletedBy: string): Promise<void> {
+  await Promise.all(ids.map((id) => softDeleteContribution(id, deletedBy)));
+}
+
+export async function batchRestore(ids: string[]): Promise<void> {
+  await Promise.all(ids.map((id) => restoreContribution(id)));
+}
+
+export async function batchPermanentlyDelete(ids: string[]): Promise<void> {
+  await Promise.all(ids.map((id) => permanentlyDeleteContribution(id)));
+}
+
+// kept for backwards-compat (contributor's own hard-delete on dashboard detail)
 export async function deleteContribution(id: string): Promise<void> {
   await deleteDoc(doc(db, "contributions", id));
 }
@@ -183,7 +225,11 @@ export function subscribeToAllContributions(
 ): Unsubscribe {
   return onSnapshot(
     query(collection(db, "contributions"), orderBy("eventDate", "asc")),
-    (snap) => cb(snap.docs.map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>)))
+    (snap) => cb(
+      snap.docs
+        .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
+        .filter((c) => c.status !== "deleted")
+    )
   );
 }
 
@@ -196,6 +242,7 @@ export function subscribeToMyContributions(
     (snap) => {
       const results = snap.docs
         .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
+        .filter((c) => c.status !== "deleted")
         .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
       cb(results);
     }
@@ -211,7 +258,46 @@ export function subscribeToAccessibleContributions(
     (snap) => {
       const results = snap.docs
         .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
+        .filter((c) => c.status !== "deleted")
         .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
+      cb(results);
+    }
+  );
+}
+
+export function subscribeToTrashedContributions(
+  cb: (contributions: Contribution[]) => void
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, "contributions"), where("status", "==", "deleted")),
+    (snap) => {
+      const results = snap.docs
+        .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
+        .sort((a, b) => {
+          const ta = (b.deletedAt ?? b.updatedAt).getTime();
+          const tb = (a.deletedAt ?? a.updatedAt).getTime();
+          return ta - tb;
+        });
+      cb(results);
+    }
+  );
+}
+
+export function subscribeToMyDeletedContributions(
+  uid: string,
+  cb: (contributions: Contribution[]) => void
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, "contributions"), where("contributorId", "==", uid)),
+    (snap) => {
+      const results = snap.docs
+        .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
+        .filter((c) => c.status === "deleted")
+        .sort((a, b) => {
+          const ta = (b.deletedAt ?? b.updatedAt).getTime();
+          const tb = (a.deletedAt ?? a.updatedAt).getTime();
+          return ta - tb;
+        });
       cb(results);
     }
   );

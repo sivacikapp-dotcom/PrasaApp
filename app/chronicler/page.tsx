@@ -7,7 +7,7 @@ import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { ContributionCard } from "@/components/contributions/ContributionCard";
 import { EventGroupCard } from "@/components/contributions/EventGroupCard";
 import { EventCard } from "@/components/contributions/EventCard";
@@ -22,7 +22,7 @@ import { useI18n } from "@/contexts/I18nContext";
 import { GroupConflictModal } from "@/components/ui/GroupConflictModal";
 import { EventGroupConflictModal } from "@/components/ui/EventGroupConflictModal";
 import { checkCategoryConflict, getEffectiveCategoryId, checkEventGroupConflict } from "@/lib/categoryConflictUtils";
-import { updateContributionByChronicler } from "@/lib/contributionService";
+import { updateContributionByChronicler, batchSoftDelete } from "@/lib/contributionService";
 import type { Group, Tag, EventGroup, ChronicleEvent } from "@/types/contribution";
 
 type PageTab = "prispevky" | "skupiny" | "udalosti";
@@ -119,6 +119,8 @@ function ChroniclerContent() {
   const [creatingEvent, setCreatingEvent] = useState(false);
   const eventTitleRef = useRef<HTMLInputElement>(null);
 
+  const [deleteSelectedOpen, setDeleteSelectedOpen] = useState(false);
+  const [deletingSelected, setDeletingSelected] = useState(false);
   const [addToGroupOpen, setAddToGroupOpen] = useState(false);
   const [addToEventOpen, setAddToEventOpen] = useState(false);
   const [pendingEventConflict, setPendingEventConflict] = useState<{
@@ -347,6 +349,15 @@ function ChroniclerContent() {
     router.push(`/chronicler/events/${eventId}`);
   }
 
+  async function handleDeleteSelected() {
+    if (!appUser) return;
+    setDeletingSelected(true);
+    await batchSoftDelete(Array.from(selectedIds), appUser.uid);
+    setDeletingSelected(false);
+    setDeleteSelectedOpen(false);
+    exitSelectMode();
+  }
+
   async function handleAddToGroup(group: EventGroup) {
     await addContributionsToGroup(group.id, Array.from(selectedIds));
     setAddToGroupOpen(false);
@@ -447,6 +458,13 @@ function ChroniclerContent() {
               )}
             </button>
           ))}
+          <div className="flex-1" />
+          <Link
+            href="/chronicler/trash"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-ink-dim hover:bg-surface hover:text-ink transition-colors"
+          >
+            <TrashIcon /> {t.chronicler.trashBtn}
+          </Link>
         </div>
       </div>
 
@@ -844,6 +862,14 @@ function ChroniclerContent() {
                 <CalendarCheckIcon /> {t.chronicler.addToEventBtn}
               </Button>
             </div>
+            <button
+              onClick={() => setDeleteSelectedOpen(true)}
+              className="w-full rounded-xl border border-danger/40 bg-danger-dim py-2 text-sm font-medium text-danger hover:bg-danger/20 transition-colors"
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <TrashIcon /> {t.chronicler.deleteSelectedBtn}
+              </span>
+            </button>
           </div>
         </div>
       )}
@@ -985,6 +1011,16 @@ function ChroniclerContent() {
         onCancel={() => setPendingEventConflict(null)}
       />
 
+      <ConfirmModal
+        open={deleteSelectedOpen}
+        title={t.chronicler.softDeleteTitle}
+        message={t.chronicler.softDeleteMessage}
+        confirmLabel={t.chronicler.softDeleteConfirm}
+        onConfirm={handleDeleteSelected}
+        onClose={() => setDeleteSelectedOpen(false)}
+        danger
+      />
+
       {pendingMergeConflict && (
         <GroupConflictModal
           open={mergeConflictOpen}
@@ -1093,6 +1129,17 @@ function CalendarCheckIcon() {
       <line x1="8" y1="2" x2="8" y2="6" />
       <line x1="3" y1="10" x2="21" y2="10" />
       <path d="M9 16l2 2 4-4" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
     </svg>
   );
 }

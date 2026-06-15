@@ -1,4 +1,4 @@
-export type ContributionStatus = "pending" | "processed";
+export type ContributionStatus = "pending" | "processed" | "deleted";
 
 export interface VoiceNote {
   url: string;
@@ -37,6 +37,8 @@ export interface Contribution {
   // Merge — many-to-many: a contribution can belong to multiple groups
   eventGroupIds: string[];
   status: ContributionStatus;
+  deletedAt: Date | null;
+  deletedBy: string | null;
   // Access control: union of contributorId + allowedUserIds of assigned category
   visibleToIds: string[];
   createdAt: Date;

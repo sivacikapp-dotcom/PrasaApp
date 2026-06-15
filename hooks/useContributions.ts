@@ -5,6 +5,8 @@ import {
   subscribeToAllContributions,
   subscribeToMyContributions,
   subscribeToAccessibleContributions,
+  subscribeToTrashedContributions,
+  subscribeToMyDeletedContributions,
 } from "@/lib/contributionService";
 import { subscribeToEvents } from "@/lib/eventService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -112,6 +114,40 @@ export function useEventMembership(): Set<string> {
   }, []);
 
   return ids;
+}
+
+export function useTrashedContributions() {
+  const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsub = subscribeToTrashedContributions((data) => {
+      setContributions(data);
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  return { contributions, loading };
+}
+
+export function useMyDeletedContributions(uid: string | undefined) {
+  const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
+    const unsub = subscribeToMyDeletedContributions(uid, (data) => {
+      setContributions(data);
+      setLoading(false);
+    });
+    return unsub;
+  }, [uid]);
+
+  return { contributions, loading };
 }
 
 /** Returns the count of pending contributions — only subscribes for chronicler/admin users. */

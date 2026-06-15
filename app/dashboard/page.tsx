@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { format } from "date-fns";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
 import { ContributionCard } from "@/components/contributions/ContributionCard";
@@ -13,10 +14,11 @@ import {
   useMyContributions,
   useProcessedAccessibleContributions,
   useEventMembership,
+  useMyDeletedContributions,
 } from "@/hooks/useContributions";
 import type { Contribution } from "@/types/contribution";
 
-type MainTab = "mine" | "allProcessed";
+type MainTab = "mine" | "allProcessed" | "deleted";
 type StatusFilter = "all" | "processed" | "pending";
 type EventFilter = "all" | "inEvent" | "notInEvent";
 type OwnershipFilter = "all" | "mine" | "notMine";
@@ -104,9 +106,10 @@ function DashboardContent() {
   const { contributions: mine, loading: loadMine } = useMyContributions(uid);
   const { contributions: allProcessed, loading: loadAllProcessed } =
     useProcessedAccessibleContributions(uid);
+  const { contributions: deleted, loading: loadDeleted } = useMyDeletedContributions(uid);
   const eventIds = useEventMembership();
 
-  const loading = tab === "mine" ? loadMine : loadAllProcessed;
+  const loading = tab === "mine" ? loadMine : tab === "allProcessed" ? loadAllProcessed : loadDeleted;
 
   const displayedMine = (() => {
     let r = mine;
@@ -138,7 +141,7 @@ function DashboardContent() {
             <button
               key={tabKey}
               onClick={() => setTab(tabKey)}
-              className={`flex-1 rounded-lg py-1.5 text-sm font-medium transition-colors ${
+              className={`flex-[2] rounded-lg py-1.5 text-sm font-medium transition-colors ${
                 tab === tabKey
                   ? "bg-gold text-gold-text shadow-sm"
                   : "text-ink-dim hover:text-ink"
@@ -149,6 +152,16 @@ function DashboardContent() {
                 : t.dashboard.allProcessedContributions}
             </button>
           ))}
+          <button
+            onClick={() => setTab("deleted")}
+            className={`flex-[1] rounded-lg py-1.5 text-xs font-medium transition-colors ${
+              tab === "deleted"
+                ? "bg-danger text-white shadow-sm"
+                : "text-danger/70 hover:text-danger"
+            }`}
+          >
+            {t.dashboard.tabDeleted}
+          </button>
         </div>
 
         {/* Filters: Moje príspevky */}
@@ -228,6 +241,33 @@ function DashboardContent() {
               ))}
             </div>
           )
+        ) : tab === "deleted" ? (
+          <>
+            <div className="mb-3 flex items-start gap-2 rounded-xl border border-rim bg-surface px-3 py-2.5 text-xs text-ink-dim">
+              <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-subtle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              {t.dashboard.deletedRestoreHint}
+            </div>
+            {deleted.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-16 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface">
+                  <svg className="h-7 w-7 text-ink-subtle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                </div>
+                <p className="text-sm text-ink-dim">{t.dashboard.deletedEmpty}</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {deleted.map((c) => (
+                  <DeletedContributionRow key={c.id} contribution={c} />
+                ))}
+              </div>
+            )}
+          </>
         ) : displayedAll.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface">
@@ -270,6 +310,35 @@ function DashboardContent() {
         </svg>
       </Link>
     </>
+  );
+}
+
+function DeletedContributionRow({ contribution }: { contribution: Contribution }) {
+  const { t, dateFnsLocale } = useI18n();
+  const c = contribution;
+  const displayDate = c.verifiedEventDate ?? c.eventDate;
+  const deletedDate = c.deletedAt ?? c.updatedAt;
+  return (
+    <div className="rounded-xl border border-danger/20 bg-surface p-3 space-y-1">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-medium text-ink-dim uppercase tracking-wide">
+            {format(displayDate, "d. MMMM yyyy", { locale: dateFnsLocale })}
+          </p>
+          <p className="text-[10px] text-ink-subtle">
+            {t.trash.deletedAtLabel(format(deletedDate, "d.M.yyyy", { locale: dateFnsLocale }))}
+          </p>
+        </div>
+        <span className="mt-0.5 shrink-0 rounded-full border border-danger/25 px-2 py-0.5 text-[10px] font-medium text-danger/60">
+          {t.dashboard.tabDeleted}
+        </span>
+      </div>
+      {c.texts[0] ? (
+        <p className="text-sm text-ink-dim line-clamp-2">{c.texts[0]}</p>
+      ) : (
+        <p className="text-sm text-ink-subtle italic">{t.trash.noText}</p>
+      )}
+    </div>
   );
 }
 

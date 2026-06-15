@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { getContribution, deleteContribution } from "@/lib/contributionService";
+import { getContribution, softDeleteContribution } from "@/lib/contributionService";
 import { ConfirmModal } from "@/components/ui/Modal";
 import type { Contribution } from "@/types/contribution";
 
@@ -28,8 +28,9 @@ function ContributionDetailContent() {
   }, [id]);
 
   async function handleDelete() {
+    if (!appUser) return;
     setDeleting(true);
-    await deleteContribution(id);
+    await softDeleteContribution(id, appUser.uid);
     router.replace("/dashboard");
   }
 
