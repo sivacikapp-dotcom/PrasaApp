@@ -90,8 +90,8 @@ service cloud.firestore {
 
     // ── notifications ─────────────────────────────────────────────────
     match /notifications/{docId} {
-      // Any active user can create notifications (triggered by their own actions)
-      allow create: if isActive();
+      // Creator must be the actor named in the notification
+      allow create: if isActive() && request.resource.data.actorId == request.auth.uid;
       // Users can only read and update their own notifications
       allow read: if isActive() && resource.data.userId == request.auth.uid;
       allow update: if isActive() && resource.data.userId == request.auth.uid;

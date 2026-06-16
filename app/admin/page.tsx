@@ -82,7 +82,8 @@ function AdminContent() {
   const { appUser } = useAuth();
   const { t, dateFnsLocale } = useI18n();
 
-  const [tab, setTab] = useState<Tab>("pouzivatelia");
+  const isAdmin = appUser?.roles.includes("admin") ?? false;
+  const [tab, setTab] = useState<Tab>(isAdmin ? "pouzivatelia" : "skupiny");
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [categories, setCategories] = useState<Group[]>([]);
@@ -225,7 +226,7 @@ function AdminContent() {
   });
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: "pouzivatelia", label: t.admin.tabUsers },
+    ...(isAdmin ? [{ key: "pouzivatelia" as Tab, label: t.admin.tabUsers }] : []),
     { key: "skupiny", label: t.admin.tabGroups },
     { key: "hashtagy", label: t.admin.tabHashtags },
   ];
@@ -237,7 +238,7 @@ function AdminContent() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-ink">{t.admin.title}</h1>
-          {pending.length > 0 && tab === "pouzivatelia" && (
+          {isAdmin && pending.length > 0 && tab === "pouzivatelia" && (
             <Badge color="amber">{t.admin.pendingBadge(pending.length)}</Badge>
           )}
         </div>

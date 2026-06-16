@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyApiToken } from "@/lib/apiAuth";
+import { verifyApiTokenWithRole } from "@/lib/apiAuth";
 import { pushNotifyLimiter, checkRateLimit } from "@/lib/rateLimit";
 
 const MAX_TOKENS = 100;
@@ -49,7 +49,8 @@ function buildBody(payload: PushPayload): string {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await verifyApiToken(req);
+  // Len kronikár alebo admin môže posielať push notifikácie
+  const auth = await verifyApiTokenWithRole(req, ["chronicler", "admin"]);
   if (!auth.ok) return auth.response;
 
   if (!await checkRateLimit(pushNotifyLimiter, auth.uid)) {
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, successCount: result.successCount });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[push-notify]", err);
+    return NextResponse.json({ error: "Chyba odoslania push notifikácie" }, { status: 500 });
   }
 }

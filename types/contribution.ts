@@ -31,6 +31,7 @@ export interface Contribution {
   chroniclerText: string | null;
   chroniclerVoiceUrl: string | null;
   chroniclerPhotoUrls: string[];
+  chroniclerVideoUrls: string[];
   chroniclerVoiceTranscript: string | null;
   categories: string[];   // Category IDs
   hashtags: string[];     // Tag IDs

@@ -8,7 +8,8 @@
 
 export function setSessionCookie(token: string) {
   const maxAge = 60 * 60; // 1 hour — matches Firebase ID token lifetime
-  document.cookie = `session=${token}; path=/; max-age=${maxAge}; SameSite=Strict`;
+  const secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `session=${token}; path=/; max-age=${maxAge}; SameSite=Strict${secure}`;
 }
 
 export function clearSessionCookie() {

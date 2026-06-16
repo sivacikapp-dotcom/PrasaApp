@@ -53,6 +53,7 @@ function fromFirestore(id: string, data: Record<string, unknown>): Contribution 
     chroniclerText: (data.chroniclerText as string | null) ?? null,
     chroniclerVoiceUrl: (data.chroniclerVoiceUrl as string | null) ?? null,
     chroniclerPhotoUrls: (data.chroniclerPhotoUrls as string[]) ?? [],
+    chroniclerVideoUrls: (data.chroniclerVideoUrls as string[]) ?? [],
     chroniclerVoiceTranscript: (data.chroniclerVoiceTranscript as string | null) ?? null,
     categories: (data.categories as string[]) ?? [],
     hashtags: (data.hashtags as string[]) ?? [],
@@ -98,6 +99,7 @@ export async function createContribution(input: NewContributionInput): Promise<s
     chroniclerText: null,
     chroniclerVoiceUrl: null,
     chroniclerPhotoUrls: [],
+    chroniclerVideoUrls: [],
     chroniclerVoiceTranscript: null,
     categories: input.categories ?? [],
     hashtags: [],
@@ -163,6 +165,7 @@ export interface ChroniclerUpdateInput {
   chroniclerText?: string | null;
   chroniclerVoiceUrl?: string | null;
   chroniclerPhotoUrls?: string[];
+  chroniclerVideoUrls?: string[];
   chroniclerVoiceTranscript?: string | null;
   voices?: VoiceNote[];
   categories?: string[];

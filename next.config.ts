@@ -25,59 +25,11 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers() {
-    const firebaseStorageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "";
-    const storageSrc = firebaseStorageBucket ? `https://${firebaseStorageBucket}` : "";
-
-    const csp = [
-      "default-src 'self'",
-      // Next.js inline scripts + Firebase SDK + Google APIs
-      "script-src 'self' 'unsafe-inline' https://*.googleapis.com https://*.gstatic.com https://apis.google.com https://www.gstatic.com",
-      // Tailwind inline styles are required; Google Fonts optional
-      "style-src 'self' 'unsafe-inline'",
-      "font-src 'self' data:",
-      // Images: Firebase Storage, Google user avatars, Mapbox tiles, blob previews
-      [
-        "img-src 'self' blob: data:",
-        "https://*.googleapis.com",
-        "https://*.gstatic.com",
-        "https://*.googleusercontent.com",
-        "https://firebasestorage.googleapis.com",
-        storageSrc,
-        "https://*.mapbox.com",
-      ].filter(Boolean).join(" "),
-      // XHR/fetch: Firebase, Mapbox, Nominatim geocoding
-      [
-        "connect-src 'self'",
-        "wss://*.firebaseio.com",
-        "https://*.googleapis.com",
-        "https://*.firebase.com",
-        "https://*.firebaseio.com",
-        "https://firebasestorage.googleapis.com",
-        storageSrc,
-        "https://*.mapbox.com",
-        "https://events.mapbox.com",
-        "https://nominatim.openstreetmap.org",
-      ].filter(Boolean).join(" "),
-      // Google OAuth popup
-      `frame-src https://accounts.google.com https://*.firebaseapp.com`,
-      // Service worker + Mapbox WebGL worker
-      "worker-src 'self' blob:",
-      // Audio/video from Firebase Storage
-      [
-        "media-src 'self' blob:",
-        "https://firebasestorage.googleapis.com",
-        storageSrc,
-      ].filter(Boolean).join(" "),
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join("; ");
-
     return [
       {
         source: "/(.*)",
         headers: [
-          { key: "Content-Security-Policy", value: csp },
+          // CSP je generovaná per-request v middleware.ts (s nonce)
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -85,6 +37,20 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(self), geolocation=(self), notifications=(self)",
           },
+        ],
+      },
+      {
+        source: "/ffmpeg/ffmpeg-core.wasm",
+        headers: [
+          { key: "Content-Type", value: "application/wasm" },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        source: "/ffmpeg/ffmpeg-core.js",
+        headers: [
+          { key: "Content-Type", value: "text/javascript" },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
       {

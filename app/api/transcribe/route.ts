@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const auth = await verifyApiToken(req);
   if (!auth.ok) return auth.response;
 
-  if (!await checkRateLimit(transcribeLimiter, auth.uid)) {
+  if (!await checkRateLimit(transcribeLimiter, auth.uid, true)) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ transcript: text });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[transcribe]", err);
+    return NextResponse.json({ error: "Chyba prepisu" }, { status: 500 });
   }
 }

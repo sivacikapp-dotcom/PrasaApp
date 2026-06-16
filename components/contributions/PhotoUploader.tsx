@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useI18n } from "@/contexts/I18nContext";
+import { PhotoEditor } from "@/components/editor/PhotoEditor";
 
 export interface PhotoFile {
   file: File;
@@ -14,12 +15,14 @@ interface PhotoUploaderProps {
   onChange: (photos: PhotoFile[]) => void;
   onDeleteExisting?: (url: string) => void;
   maxCount?: number;
+  allowEdit?: boolean;
 }
 
-export function PhotoUploader({ photos, existingUrls = [], onChange, onDeleteExisting, maxCount = 10 }: PhotoUploaderProps) {
+export function PhotoUploader({ photos, existingUrls = [], onChange, onDeleteExisting, maxCount = 10, allowEdit = false }: PhotoUploaderProps) {
   const { t } = useI18n();
   const galleryRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const total = existingUrls.length + photos.length;
   const canAdd = total < maxCount;
 
@@ -34,6 +37,16 @@ export function PhotoUploader({ photos, existingUrls = [], onChange, onDeleteExi
   function removeNew(index: number) {
     URL.revokeObjectURL(photos[index].previewUrl);
     onChange(photos.filter((_, i) => i !== index));
+  }
+
+  function handleEditSave(file: File) {
+    if (editingIndex === null) return;
+    URL.revokeObjectURL(photos[editingIndex].previewUrl);
+    const updated = photos.map((p, i) =>
+      i === editingIndex ? { file, previewUrl: URL.createObjectURL(file) } : p,
+    );
+    onChange(updated);
+    setEditingIndex(null);
   }
 
   return (
@@ -57,6 +70,13 @@ export function PhotoUploader({ photos, existingUrls = [], onChange, onDeleteExi
             <div key={p.previewUrl} className="relative aspect-square rounded-xl overflow-hidden bg-surface-high">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.previewUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              {allowEdit && (
+                <button type="button" onClick={() => setEditingIndex(i)}
+                  className="absolute top-1 left-1 rounded-full bg-black/60 p-1 text-ink hover:bg-black/80"
+                  aria-label="Upraviť foto">
+                  <PencilIcon />
+                </button>
+              )}
               <button type="button" onClick={() => removeNew(i)}
                 className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-ink hover:bg-black/80"
                 aria-label={t.components.removePhoto}>
@@ -84,7 +104,25 @@ export function PhotoUploader({ photos, existingUrls = [], onChange, onDeleteExi
         </div>
       )}
       {!canAdd && <p className="text-xs text-ink-subtle">{t.components.maxPhotosReached(maxCount)}</p>}
+
+      {editingIndex !== null && (
+        <PhotoEditor
+          source={photos[editingIndex].previewUrl}
+          fileName={photos[editingIndex].file.name}
+          onSave={handleEditSave}
+          onClose={() => setEditingIndex(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
   );
 }
 

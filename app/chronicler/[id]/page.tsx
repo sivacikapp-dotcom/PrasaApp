@@ -18,6 +18,9 @@ import { uploadChroniclerPhoto, uploadChroniclerVoice } from "@/lib/storageServi
 import { UserTagSelector } from "@/components/contributions/UserTagSelector";
 import { addContributionsToGroup, getEventGroups } from "@/lib/eventGroupService";
 import { addContributionsToEvent, createEvent, getEvents, removeContributionFromEvent, updateEvent } from "@/lib/eventService";
+import { PhotoEditor } from "@/components/editor/PhotoEditor";
+import { VideoEditor } from "@/components/editor/VideoEditor";
+import { uploadChroniclerVideo } from "@/lib/storageService";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { GroupPickerModal } from "@/components/ui/GroupPickerModal";
 import { EventPickerModal } from "@/components/ui/EventPickerModal";
@@ -60,6 +63,10 @@ function ChroniclerDetailContent() {
   const [transcribingChroniclerVoice, setTranscribingChroniclerVoice] = useState(false);
   const [transcribeVoiceError, setTranscribeVoiceError] = useState<{ index: number; msg: string } | null>(null);
   const [transcribeChroniclerError, setTranscribeChroniclerError] = useState<string | null>(null);
+  const [editingFirebasePhoto, setEditingFirebasePhoto] = useState<{ blobUrl: string; fileName: string; removeUrl?: string } | null>(null);
+  const [editingFirebaseVideo, setEditingFirebaseVideo] = useState<{ blobUrl: string; fileName: string; removeUrl?: string } | null>(null);
+  const [existingChroniclerVideos, setExistingChroniclerVideos] = useState<string[]>([]);
+  const [loadingEditUrl, setLoadingEditUrl] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
@@ -81,6 +88,7 @@ function ChroniclerDetailContent() {
         setVoiceTranscripts(c.voices.map((v) => v.transcript ?? ""));
         setChroniclerVoiceTranscript(c.chroniclerVoiceTranscript ?? "");
         setExistingChroniclerPhotos(c.chroniclerPhotoUrls);
+        setExistingChroniclerVideos(c.chroniclerVideoUrls);
         setSelectedCategories(c.categories);
         setSelectedTags(c.hashtags);
         setTaggedUserIds(c.taggedUserIds ?? []);
@@ -93,6 +101,64 @@ function ChroniclerDetailContent() {
 
   function toggleTag(tagId: string) {
     setSelectedTags((prev) => prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId]);
+  }
+
+  function assertFirebaseStorageUrl(url: string) {
+    if (!url.startsWith("https://firebasestorage.googleapis.com/")) {
+      throw new Error("Neplatná adresa súboru");
+    }
+  }
+
+  async function startEditingFirebasePhoto(url: string, removeOnSave: boolean) {
+    assertFirebaseStorageUrl(url);
+    setLoadingEditUrl(url);
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const fileName = decodeURIComponent(url.split('/').pop()?.split('?')[0] ?? 'photo.jpg');
+      setEditingFirebasePhoto({ blobUrl, fileName, removeUrl: removeOnSave ? url : undefined });
+    } finally {
+      setLoadingEditUrl(null);
+    }
+  }
+
+  async function startEditingFirebaseVideo(url: string, removeOnSave: boolean) {
+    assertFirebaseStorageUrl(url);
+    setLoadingEditUrl(url);
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const fileName = decodeURIComponent(url.split('/').pop()?.split('?')[0] ?? 'video.mp4');
+      setEditingFirebaseVideo({ blobUrl, fileName, removeUrl: removeOnSave ? url : undefined });
+    } finally {
+      setLoadingEditUrl(null);
+    }
+  }
+
+  async function handleVideoSave(file: File) {
+    if (!editingFirebaseVideo) return;
+    if (editingFirebaseVideo.removeUrl) {
+      setExistingChroniclerVideos((prev) => prev.filter((u) => u !== editingFirebaseVideo.removeUrl));
+    }
+    URL.revokeObjectURL(editingFirebaseVideo.blobUrl);
+    setEditingFirebaseVideo(null);
+
+    const url = await uploadChroniclerVideo(file, id, existingChroniclerVideos.length);
+    const updated = [...existingChroniclerVideos.filter((u) => u !== editingFirebaseVideo.removeUrl), url];
+    setExistingChroniclerVideos(updated);
+    await updateContributionByChronicler(id, { chroniclerVideoUrls: updated });
+  }
+
+  function handleFirebasePhotoSave(file: File) {
+    if (!editingFirebasePhoto) return;
+    if (editingFirebasePhoto.removeUrl) {
+      setExistingChroniclerPhotos((prev) => prev.filter((u) => u !== editingFirebasePhoto.removeUrl));
+    }
+    setNewPhotos((prev) => [...prev, { file, previewUrl: URL.createObjectURL(file) }]);
+    URL.revokeObjectURL(editingFirebasePhoto.blobUrl);
+    setEditingFirebasePhoto(null);
   }
 
   async function handleSave(markProcessed: boolean) {
@@ -140,6 +206,7 @@ function ChroniclerDetailContent() {
       chroniclerText: chroniclerText.trim() || null,
       chroniclerVoiceUrl,
       chroniclerPhotoUrls: allChroniclerPhotos,
+      chroniclerVideoUrls: existingChroniclerVideos,
       voices: updatedVoices,
       chroniclerVoiceTranscript: chroniclerVoiceTranscript.trim() || null,
       categories: selectedCategories,
@@ -377,10 +444,39 @@ function ChroniclerDetailContent() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                  <button
+                    type="button"
+                    onClick={() => startEditingFirebasePhoto(url, false)}
+                    disabled={loadingEditUrl === url}
+                    className="absolute top-1 left-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80 disabled:opacity-50 transition-opacity"
+                    aria-label="Upraviť foto"
+                  >
+                    {loadingEditUrl === url ? <MiniSpinnerIcon /> : <PencilSmallIcon />}
+                  </button>
                 </div>
               ))}
             </div>
           )}
+          {c.videoUrls.length > 0 && (
+            <div className="space-y-2">
+              {c.videoUrls.map((url) => (
+                <div key={url} className="relative rounded-lg overflow-hidden bg-surface-high">
+                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                  <video src={url} controls playsInline className="w-full max-h-64 object-contain" />
+                  <button
+                    type="button"
+                    onClick={() => startEditingFirebaseVideo(url, false)}
+                    disabled={loadingEditUrl === url}
+                    className="absolute top-2 left-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 disabled:opacity-50 transition-opacity"
+                    aria-label="Strih videa"
+                  >
+                    {loadingEditUrl === url ? <MiniSpinnerIcon /> : <ScissorsIcon />}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {c.voices.length > 0 && (
             <div className="space-y-2">
               {c.voices.map((v, i) => (
@@ -452,9 +548,70 @@ function ChroniclerDetailContent() {
 
           <div>
             <label className="block text-sm font-medium text-ink-dim mb-2">{t.chroniclerDetail.chroniclerPhotosLabel}</label>
-            <PhotoUploader photos={newPhotos} existingUrls={existingChroniclerPhotos} onChange={setNewPhotos}
-              onDeleteExisting={(url) => setExistingChroniclerPhotos((prev) => prev.filter((u) => u !== url))} />
+            {existingChroniclerPhotos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {existingChroniclerPhotos.map((url) => (
+                  <div key={url} className="relative aspect-square rounded-xl overflow-hidden bg-surface-high">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                    <button
+                      type="button"
+                      onClick={() => startEditingFirebasePhoto(url, true)}
+                      disabled={loadingEditUrl === url}
+                      className="absolute top-1 left-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80 disabled:opacity-50 transition-opacity"
+                      aria-label="Upraviť foto"
+                    >
+                      {loadingEditUrl === url ? <MiniSpinnerIcon /> : <PencilSmallIcon />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExistingChroniclerPhotos((prev) => prev.filter((u) => u !== url))}
+                      className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                      aria-label={t.components.removePhoto}
+                    >
+                      <XSmallIcon />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <PhotoUploader photos={newPhotos} onChange={setNewPhotos} allowEdit />
           </div>
+
+          {/* Cropped / processed videos from chronicler */}
+          {existingChroniclerVideos.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-ink-dim mb-2">Spracované videá</label>
+              <div className="space-y-2">
+                {existingChroniclerVideos.map((url) => (
+                  <div key={url} className="relative rounded-xl overflow-hidden bg-surface-high">
+                    {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                    <video src={url} controls playsInline className="w-full max-h-64 object-contain" />
+                    <div className="absolute top-2 left-2 flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => startEditingFirebaseVideo(url, true)}
+                        disabled={loadingEditUrl === url}
+                        className="rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 disabled:opacity-50 transition-opacity"
+                        aria-label="Strih videa"
+                      >
+                        {loadingEditUrl === url ? <MiniSpinnerIcon /> : <ScissorsIcon />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExistingChroniclerVideos((prev) => prev.filter((u) => u !== url))}
+                        className="rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
+                        aria-label="Odstrániť video"
+                      >
+                        <XSmallIcon />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-ink-dim">{t.chroniclerDetail.chroniclerVoiceLabel}</label>
@@ -648,6 +805,30 @@ function ChroniclerDetailContent() {
         </button>
       </div>
 
+      {editingFirebaseVideo && (
+        <VideoEditor
+          source={editingFirebaseVideo.blobUrl}
+          fileName={editingFirebaseVideo.fileName}
+          onSave={handleVideoSave}
+          onClose={() => {
+            URL.revokeObjectURL(editingFirebaseVideo.blobUrl);
+            setEditingFirebaseVideo(null);
+          }}
+        />
+      )}
+
+      {editingFirebasePhoto && (
+        <PhotoEditor
+          source={editingFirebasePhoto.blobUrl}
+          fileName={editingFirebasePhoto.fileName}
+          onSave={handleFirebasePhotoSave}
+          onClose={() => {
+            URL.revokeObjectURL(editingFirebasePhoto.blobUrl);
+            setEditingFirebasePhoto(null);
+          }}
+        />
+      )}
+
       <ConfirmModal
         open={deleteOpen}
         title={t.chronicler.softDeleteTitle}
@@ -692,6 +873,32 @@ function ChroniclerDetailContent() {
 
 export default function ChroniclerDetailPage() {
   return <RouteGuard requiredRole="chronicler"><ChroniclerDetailContent /></RouteGuard>;
+}
+
+function ScissorsIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+      <circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
+      <path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12" />
+    </svg>
+  );
+}
+
+function PencilSmallIcon() {
+  return (
+    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
+function MiniSpinnerIcon() {
+  return (
+    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    </svg>
+  );
 }
 
 function SpinnerIcon() {

@@ -20,13 +20,13 @@ service firebase.storage {
 
     // Contributor media — each contributor writes only to their own uid folder
     match /contributions/{uid}/{allPaths=**} {
-      allow read:  if isAuth();
+      allow read:  if isActive();
       allow write: if hasRole('contributor') && request.auth.uid == uid;
     }
 
     // Chronicler media — only chroniclers and admins may write
     match /chronicler/{allPaths=**} {
-      allow read:  if isAuth();
+      allow read:  if isActive();
       allow write: if hasRole('chronicler') || hasRole('admin');
     }
 
