@@ -69,7 +69,6 @@ function EditContributionForm() {
       setTaggedUserIds(c.taggedUserIds ?? []);
       setLoading(false);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, appUser]);
 
   function updateText(index: number, value: string) {

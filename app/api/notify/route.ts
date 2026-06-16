@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { z } from "zod";
+import { verifyApiToken } from "@/lib/apiAuth";
 
-type NotifyPayload =
-  | { type: "newContribution"; contributorName: string; eventDate: string }
-  | { type: "newUser"; userName: string; userEmail: string };
+const payloadSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("newContribution"),
+    contributorName: z.string().max(300),
+    eventDate: z.string().max(100),
+  }),
+  z.object({
+    type: z.literal("newUser"),
+    userName: z.string().max(300),
+    userEmail: z.string().email().max(320),
+  }),
+]);
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 async function getEmailsByRole(role: string): Promise<string[]> {
-  // Used only when RESEND_TEST_EMAIL is not set (own domain mode)
   const { getAdminDb } = await import("@/lib/firebaseAdmin");
   const db = getAdminDb();
   const snap = await db.collection("users")
@@ -19,15 +38,21 @@ async function getEmailsByRole(role: string): Promise<string[]> {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await verifyApiToken(req);
+  if (!auth.ok) return auth.response;
+
   try {
-    const payload = await req.json() as NotifyPayload;
+    const parsed = payloadSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    const payload = parsed.data;
 
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "RESEND_API_KEY nie je nastavený na serveri" }, { status: 500 });
     }
 
-    // When RESEND_TEST_EMAIL is set, all notifications go there (Resend free tier without domain)
     const testEmail = process.env.RESEND_TEST_EMAIL;
     const from = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
     const resend = new Resend(apiKey);
@@ -43,7 +68,7 @@ export async function POST(req: NextRequest) {
         subject: "Nový príspevok v Kronika",
         html: `
           <p>Dobrý deň,</p>
-          <p>Používateľ <strong>${contributorName}</strong> pridal nový príspevok (${eventDate}).</p>
+          <p>Používateľ <strong>${escapeHtml(contributorName)}</strong> pridal nový príspevok (${escapeHtml(eventDate)}).</p>
           <p>Prihláste sa do aplikácie a skontrolujte príspevok.</p>
         `,
       });
@@ -61,7 +86,7 @@ export async function POST(req: NextRequest) {
         subject: "Nová žiadosť o prístup",
         html: `
           <p>Dobrý deň,</p>
-          <p>Používateľ <strong>${userName}</strong> (${userEmail}) požiadal o prístup do Kronika.</p>
+          <p>Používateľ <strong>${escapeHtml(userName)}</strong> (${escapeHtml(userEmail)}) požiadal o prístup do Kronika.</p>
           <p>Prihláste sa do aplikácie a schváľte alebo zamietnte žiadosť.</p>
         `,
       });

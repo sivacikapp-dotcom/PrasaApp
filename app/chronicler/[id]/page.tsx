@@ -24,6 +24,7 @@ import { EventPickerModal } from "@/components/ui/EventPickerModal";
 import { EventGroupConflictModal } from "@/components/ui/EventGroupConflictModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
+import { getAuthHeaders } from "@/lib/authHeaders";
 import type { Contribution, Group, Tag, ChronicleEvent, EventGroup } from "@/types/contribution";
 import type { AppUser } from "@/types/user";
 
@@ -159,9 +160,10 @@ function ChroniclerDetailContent() {
     setTranscribingVoiceIndex(index);
     setTranscribeVoiceError(null);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/transcribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ voiceUrl: v.url }),
       });
       const data = await res.json() as { transcript?: string; error?: string };
@@ -191,9 +193,10 @@ function ChroniclerDetailContent() {
     setTranscribingChroniclerVoice(true);
     setTranscribeChroniclerError(null);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/transcribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ voiceUrl: url }),
       });
       const data = await res.json() as { transcript?: string; error?: string };

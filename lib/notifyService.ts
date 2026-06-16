@@ -1,8 +1,11 @@
+import { getAuthHeaders } from "@/lib/authHeaders";
+
 export async function notifyChroniclers(contributorName: string, eventDate: Date): Promise<void> {
   try {
+    const headers = await getAuthHeaders();
     await fetch("/api/notify", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify({
         type: "newContribution",
         contributorName,
@@ -16,9 +19,10 @@ export async function notifyChroniclers(contributorName: string, eventDate: Date
 
 export async function notifyAdmins(userName: string, userEmail: string): Promise<void> {
   try {
+    const headers = await getAuthHeaders();
     await fetch("/api/notify", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify({ type: "newUser", userName, userEmail }),
     });
   } catch {

@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { verifyApiToken } from "@/lib/apiAuth";
 
-interface PushPayload {
-  tokens: string[];
-  type: string;
-  actorName?: string;
-  eventTitle?: string;
-  categoryName?: string;
-  extraUserName?: string;
-}
+const MAX_TOKENS = 100;
+
+const payloadSchema = z.object({
+  tokens: z.array(z.string().max(512)).max(MAX_TOKENS),
+  type: z.string().max(100),
+  actorName: z.string().max(300).optional(),
+  eventTitle: z.string().max(500).optional(),
+  categoryName: z.string().max(300).optional(),
+  extraUserName: z.string().max(300).optional(),
+});
+
+type PushPayload = z.infer<typeof payloadSchema>;
 
 function buildBody(payload: PushPayload): string {
   const { type, actorName, eventTitle, categoryName, extraUserName } = payload;
@@ -40,10 +46,17 @@ function buildBody(payload: PushPayload): string {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const payload = await req.json() as PushPayload;
+  const auth = await verifyApiToken(req);
+  if (!auth.ok) return auth.response;
 
-    if (!payload.tokens?.length) {
+  try {
+    const parsed = payloadSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    const payload = parsed.data;
+
+    if (!payload.tokens.length) {
       return NextResponse.json({ ok: true, skipped: "no tokens" });
     }
 

@@ -86,7 +86,6 @@ function EventEditContent() {
       setLoading(false);
     }
     load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, appUser]);
 
   async function handleSave() {

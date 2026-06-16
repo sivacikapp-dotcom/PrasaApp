@@ -126,14 +126,14 @@ function ContributionDetailContent() {
                 <div key={v.url} className="rounded-xl bg-surface border border-rim p-3">
                   <p className="mb-1.5 text-xs text-ink-subtle">{t.contribCard.voiceLabel(c.contributorName, i, c.voices.length)}</p>
                   <audio src={v.url} controls className="w-full h-8" />
-                  {v.transcript && <p className="mt-2 text-xs text-ink-dim italic">"{v.transcript}"</p>}
+                  {v.transcript && <p className="mt-2 text-xs text-ink-dim italic">&ldquo;{v.transcript}&rdquo;</p>}
                 </div>
               ))}
               {c.chroniclerVoiceUrl && (
                 <div className="rounded-xl bg-gold-dim border border-gold/20 p-3">
                   <p className="mb-1.5 text-xs text-gold/70">{t.contribCard.chroniclerLabel}</p>
                   <audio src={c.chroniclerVoiceUrl} controls className="w-full h-8" />
-                  {c.chroniclerVoiceTranscript && <p className="mt-2 text-xs text-gold/70 italic">"{c.chroniclerVoiceTranscript}"</p>}
+                  {c.chroniclerVoiceTranscript && <p className="mt-2 text-xs text-gold/70 italic">&ldquo;{c.chroniclerVoiceTranscript}&rdquo;</p>}
                 </div>
               )}
             </div>

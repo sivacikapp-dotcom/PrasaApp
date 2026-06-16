@@ -15,6 +15,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { getAuthHeaders } from "@/lib/authHeaders";
 import type { AppNotification, NotificationType, NotificationSettings, NotificationPref } from "@/types/notification";
 import { DEFAULT_NOTIFICATION_SETTINGS } from "@/types/notification";
 
@@ -85,18 +86,20 @@ async function createOneNotification(input: NotificationInput): Promise<void> {
     if (pref === "push") {
       const tokens = (userData.fcmTokens as string[]) ?? [];
       if (tokens.length > 0) {
-        fetch("/api/push-notify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tokens,
-            type: input.type,
-            actorName: input.actorName,
-            eventTitle: input.eventTitle,
-            categoryName: input.categoryName,
-            extraUserName: input.extraUserName,
-          }),
-        }).catch(() => {});
+        getAuthHeaders().then((authHeaders) =>
+          fetch("/api/push-notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders },
+            body: JSON.stringify({
+              tokens,
+              type: input.type,
+              actorName: input.actorName,
+              eventTitle: input.eventTitle,
+              categoryName: input.categoryName,
+              extraUserName: input.extraUserName,
+            }),
+          })
+        ).catch(() => {});
       }
     }
   } catch {
