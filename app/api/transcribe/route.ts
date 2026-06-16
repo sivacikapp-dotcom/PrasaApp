@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI, { toFile } from "openai";
 import { z } from "zod";
 import { verifyApiToken } from "@/lib/apiAuth";
+import { transcribeLimiter, checkRateLimit } from "@/lib/rateLimit";
 
 const ALLOWED_STORAGE_ORIGINS = [
   "https://firebasestorage.googleapis.com",
@@ -17,6 +18,10 @@ const payloadSchema = z.object({
 export async function POST(req: NextRequest) {
   const auth = await verifyApiToken(req);
   if (!auth.ok) return auth.response;
+
+  if (!await checkRateLimit(transcribeLimiter, auth.uid)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
 
   try {
     const parsed = payloadSchema.safeParse(await req.json());

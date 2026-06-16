@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { z } from "zod";
 import { verifyApiToken } from "@/lib/apiAuth";
+import { notifyLimiter, checkRateLimit } from "@/lib/rateLimit";
 
 const payloadSchema = z.discriminatedUnion("type", [
   z.object({
@@ -40,6 +41,10 @@ async function getEmailsByRole(role: string): Promise<string[]> {
 export async function POST(req: NextRequest) {
   const auth = await verifyApiToken(req);
   if (!auth.ok) return auth.response;
+
+  if (!await checkRateLimit(notifyLimiter, auth.uid)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
 
   try {
     const parsed = payloadSchema.safeParse(await req.json());

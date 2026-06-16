@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyApiToken } from "@/lib/apiAuth";
+import { pushNotifyLimiter, checkRateLimit } from "@/lib/rateLimit";
 
 const MAX_TOKENS = 100;
 
@@ -48,6 +49,10 @@ function buildBody(payload: PushPayload): string {
 export async function POST(req: NextRequest) {
   const auth = await verifyApiToken(req);
   if (!auth.ok) return auth.response;
+
+  if (!await checkRateLimit(pushNotifyLimiter, auth.uid)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
 
   try {
     const parsed = payloadSchema.safeParse(await req.json());
