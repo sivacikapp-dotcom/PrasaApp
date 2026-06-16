@@ -11,7 +11,7 @@ export const cs: Dictionary = {
     contributions: "Příspěvky",
     events: "Události",
     chronicler: "Kronikář",
-    admin: "Správa",
+    admin: "Správa aplikace",
     signOut: "Odhlásit",
     settings: "Nastavení",
     language: "Jazyk",
@@ -578,6 +578,7 @@ export const cs: Dictionary = {
       user_added_to_group: "Osoba přidána do mé skupiny",
       user_removed_from_group: "Osoba odebrána z mé skupiny",
       contribution_processed: "Nový příspěvek v mé skupině",
+      access_request: "Žádost o přístup",
     },
     prefLabels: {
       push: "Push",
@@ -598,6 +599,7 @@ export const cs: Dictionary = {
       user_added_to_group: (userName: string, groupName: string): string => `${userName} byl přidán do skupiny „${groupName}"`,
       user_removed_from_group: (userName: string, groupName: string): string => `${userName} byl odebrán ze skupiny „${groupName}"`,
       contribution_processed: (actor: string, groupName: string): string => `${actor} přidal zpracovaný příspěvek do skupiny „${groupName}"`,
+      access_request: (name: string): string => `${name} požádal o přístup do aplikace`,
     },
   },
 };

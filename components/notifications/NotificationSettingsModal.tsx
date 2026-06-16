@@ -16,8 +16,12 @@ const PREF_OPTIONS: NotificationPref[] = ["push", "in_app", "off"];
 
 export function NotificationSettingsModal({ onClose }: Props) {
   const { t } = useI18n();
-  const { appUser } = useAuth();
+  const { appUser, hasRole } = useAuth();
   const { settings, loading, updateSettings } = useNotificationSettings();
+  const isAdmin = hasRole("admin");
+  const visibleTypes = NOTIFICATION_TYPES.filter(
+    (type) => type !== "access_request" || isAdmin
+  );
   const [pushState, setPushState] = useState<string>("default");
   const [requestingPush, setRequestingPush] = useState(false);
 
@@ -83,7 +87,7 @@ export function NotificationSettingsModal({ onClose }: Props) {
             <p className="text-sm text-ink-subtle py-4 text-center">Načítavam…</p>
           ) : (
             <div className="space-y-1">
-              {NOTIFICATION_TYPES.map((type) => (
+              {visibleTypes.map((type) => (
                 <div key={type} className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 hover:bg-surface">
                   <span className="text-sm text-ink">{t.notifications.typeLabels[type]}</span>
                   <div className="flex shrink-0 gap-1 rounded-lg bg-surface p-0.5">

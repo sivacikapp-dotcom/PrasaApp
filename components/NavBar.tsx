@@ -43,7 +43,6 @@ export function NavBar() {
       show: isChronicler,
       badge: pendingCount > 0 ? pendingCount : undefined,
     },
-    { href: "/admin", label: t.nav.admin, show: isAdmin },
   ];
 
   useEffect(() => {
@@ -185,6 +184,18 @@ export function NavBar() {
                     {t.nav.settings}
                   </button>
 
+                  {/* App management (admin only) */}
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink transition-colors hover:bg-surface"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <AdminIcon />
+                      {t.nav.admin}
+                    </Link>
+                  )}
+
                   {/* Sign out */}
                   <button
                     onClick={() => { setMenuOpen(false); void signOut(); }}
@@ -234,6 +245,15 @@ function PenIcon() {
     <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function AdminIcon() {
+  return (
+    <svg className="h-4 w-4 shrink-0 text-ink-subtle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2a5 5 0 1 0 5 5A5 5 0 0 0 12 2z" />
+      <path d="M12 14c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z" />
     </svg>
   );
 }

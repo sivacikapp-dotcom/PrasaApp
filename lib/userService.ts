@@ -8,11 +8,13 @@ import {
   serverTimestamp,
   query,
   orderBy,
+  where,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import { db } from "./firebase";
 import type { AppUser, UserRole, UserStatus } from "@/types/user";
 import { notifyAdmins } from "./notifyService";
+import { createNotificationsForUsers } from "./notificationService";
 
 function toAppUser(data: Record<string, unknown>, uid: string): AppUser {
   const ts = (v: unknown) =>
@@ -52,10 +54,26 @@ export async function getOrCreateUser(firebaseUser: User): Promise<AppUser> {
     };
     await setDoc(ref, newUser);
     notifyAdmins(newUser.displayName || newUser.email, newUser.email).catch(() => {});
+    notifyAdminsInApp(firebaseUser.uid, newUser.displayName || newUser.email, firebaseUser.photoURL).catch(() => {});
     return { ...newUser, createdAt: new Date(), updatedAt: new Date() };
   }
 
   return toAppUser(snap.data() as Record<string, unknown>, firebaseUser.uid);
+}
+
+async function notifyAdminsInApp(actorId: string, actorName: string, actorPhotoURL: string | null): Promise<void> {
+  const snap = await getDocs(query(collection(db, "users"), where("roles", "array-contains", "admin")));
+  const adminIds = snap.docs.map((d) => d.id);
+  if (adminIds.length === 0) return;
+  createNotificationsForUsers(
+    adminIds.map((adminId) => ({
+      userId: adminId,
+      type: "access_request" as const,
+      actorId,
+      actorName,
+      actorPhotoURL,
+    }))
+  );
 }
 
 export async function getUserById(uid: string): Promise<AppUser | null> {

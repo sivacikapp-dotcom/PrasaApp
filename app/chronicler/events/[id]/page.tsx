@@ -514,7 +514,8 @@ function EventDetailContent() {
                             {photos.map((url) => (
                               <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-surface-high">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                                <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover"
+                                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                               </div>
                             ))}
                           </div>

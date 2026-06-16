@@ -132,10 +132,11 @@ function EditContributionForm() {
     try {
       await Promise.all(deletedVoiceUrls.map((url) => deleteFile(url)));
 
-      const uploadedPhotos = await Promise.all(
-        newPhotos.map((p) => uploadPhoto(p.file, id, appUser.uid))
-      );
-      newPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      const uploadedPhotos: string[] = [];
+      for (let i = 0; i < newPhotos.length; i++) {
+        uploadedPhotos.push(await uploadPhoto(newPhotos[i].file, id, appUser.uid, existingPhotos.length + i));
+        URL.revokeObjectURL(newPhotos[i].previewUrl);
+      }
 
       const uploadedVoices: VoiceNote[] = [];
       for (const { blob } of newVoiceBlobs) {

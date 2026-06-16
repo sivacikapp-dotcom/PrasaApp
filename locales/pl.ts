@@ -11,7 +11,7 @@ export const pl: Dictionary = {
     contributions: "Posty",
     events: "Zdarzenia",
     chronicler: "Kronikarz",
-    admin: "Zarządzanie",
+    admin: "Zarządzanie aplikacją",
     signOut: "Wyloguj",
     settings: "Ustawienia",
     language: "Język",
@@ -578,6 +578,7 @@ export const pl: Dictionary = {
       user_added_to_group: "Osoba dodana do mojej grupy",
       user_removed_from_group: "Osoba usunięta z mojej grupy",
       contribution_processed: "Nowy post w mojej grupie",
+      access_request: "Prośba o dostęp",
     },
     prefLabels: {
       push: "Push",
@@ -598,6 +599,7 @@ export const pl: Dictionary = {
       user_added_to_group: (userName: string, groupName: string): string => `${userName} został dodany do grupy „${groupName}"`,
       user_removed_from_group: (userName: string, groupName: string): string => `${userName} został usunięty z grupy „${groupName}"`,
       contribution_processed: (actor: string, groupName: string): string => `${actor} dodał przetworzony post do grupy „${groupName}"`,
+      access_request: (name: string): string => `${name} poprosił o dostęp do aplikacji`,
     },
   },
 };

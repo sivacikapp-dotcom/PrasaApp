@@ -11,7 +11,7 @@ export const en: Dictionary = {
     contributions: "Contributions",
     events: "Events",
     chronicler: "Chronicler",
-    admin: "Admin",
+    admin: "App Management",
     signOut: "Sign out",
     settings: "Settings",
     language: "Language",
@@ -571,6 +571,7 @@ export const en: Dictionary = {
       user_added_to_group: "Person added to my group",
       user_removed_from_group: "Person removed from my group",
       contribution_processed: "New contribution in my group",
+      access_request: "Access request",
     },
     prefLabels: {
       push: "Push",
@@ -591,6 +592,7 @@ export const en: Dictionary = {
       user_added_to_group: (userName: string, groupName: string): string => `${userName} was added to group "${groupName}"`,
       user_removed_from_group: (userName: string, groupName: string): string => `${userName} was removed from group "${groupName}"`,
       contribution_processed: (actor: string, groupName: string): string => `${actor} added a processed contribution to group "${groupName}"`,
+      access_request: (name: string): string => `${name} requested access to the app`,
     },
   },
 };

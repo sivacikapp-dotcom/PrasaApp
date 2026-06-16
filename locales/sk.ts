@@ -10,7 +10,7 @@ export const sk = {
     contributions: "Príspevky",
     events: "Udalosti",
     chronicler: "Kronikár",
-    admin: "Správa",
+    admin: "Správa aplikácie",
     signOut: "Odhlásiť",
     settings: "Nastavenia",
     language: "Zmena jazyka",
@@ -577,6 +577,7 @@ export const sk = {
       user_added_to_group: "Osoba pridaná do mojej skupiny",
       user_removed_from_group: "Osoba odobratá z mojej skupiny",
       contribution_processed: "Nový príspevok v mojej skupine",
+      access_request: "Žiadosť o prístup",
     },
     prefLabels: {
       push: "Push",
@@ -597,6 +598,7 @@ export const sk = {
       user_added_to_group: (userName: string, groupName: string): string => `${userName} bol pridaný do skupiny „${groupName}"`,
       user_removed_from_group: (userName: string, groupName: string): string => `${userName} bol odobratý zo skupiny „${groupName}"`,
       contribution_processed: (actor: string, groupName: string): string => `${actor} pridal spracovaný príspevok do skupiny „${groupName}"`,
+      access_request: (name: string): string => `${name} požiadal o prístup do aplikácie`,
     },
   },
 };

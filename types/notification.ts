@@ -6,7 +6,8 @@ export type NotificationType =
   | "event_created"
   | "user_added_to_group"
   | "user_removed_from_group"
-  | "contribution_processed";
+  | "contribution_processed"
+  | "access_request";
 
 export type NotificationPref = "push" | "in_app" | "off";
 
@@ -19,6 +20,7 @@ export interface NotificationSettings {
   user_added_to_group: NotificationPref;
   user_removed_from_group: NotificationPref;
   contribution_processed: NotificationPref;
+  access_request: NotificationPref;
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -30,6 +32,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   user_added_to_group: "in_app",
   user_removed_from_group: "in_app",
   contribution_processed: "in_app",
+  access_request: "push",
 };
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
@@ -41,6 +44,7 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   "user_added_to_group",
   "user_removed_from_group",
   "contribution_processed",
+  "access_request",
 ];
 
 export interface AppNotification {

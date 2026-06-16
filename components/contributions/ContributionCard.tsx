@@ -109,7 +109,8 @@ export function ContributionCard({
             {allPhotos.slice(0, 4).map((url, i) => (
               <div key={url} className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden bg-surface-high">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                 {i === 3 && allPhotos.length > 4 && (
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-ink text-sm font-medium">
                     +{allPhotos.length - 4}

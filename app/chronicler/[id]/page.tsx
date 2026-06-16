@@ -115,7 +115,10 @@ function ChroniclerDetailContent() {
     }
     setTaggedUserError(null);
     setSaving(true);
-    const uploadedPhotos = await Promise.all(newPhotos.map((p) => uploadChroniclerPhoto(p.file, id)));
+    const uploadedPhotos: string[] = [];
+    for (let i = 0; i < newPhotos.length; i++) {
+      uploadedPhotos.push(await uploadChroniclerPhoto(newPhotos[i].file, id, existingChroniclerPhotos.length + i));
+    }
     const allChroniclerPhotos = [...existingChroniclerPhotos, ...uploadedPhotos];
     let chroniclerVoiceUrl = contribution.chroniclerVoiceUrl;
     if (voiceBlob) chroniclerVoiceUrl = await uploadChroniclerVoice(voiceBlob, id);
@@ -372,7 +375,8 @@ function ChroniclerDetailContent() {
               {c.photoUrls.map((url) => (
                 <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-surface-high">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                  <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                 </div>
               ))}
             </div>

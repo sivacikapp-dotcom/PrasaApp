@@ -4,10 +4,11 @@ import { storage } from "./firebase";
 export async function uploadPhoto(
   file: File,
   contributionId: string,
-  uid: string
+  uid: string,
+  index = 0
 ): Promise<string> {
   const ext = file.name.split(".").pop() ?? "jpg";
-  const path = `contributions/${uid}/${contributionId}/photos/${Date.now()}.${ext}`;
+  const path = `contributions/${uid}/${contributionId}/photos/${Date.now()}_${index}.${ext}`;
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, file);
   return getDownloadURL(storageRef);
@@ -15,10 +16,11 @@ export async function uploadPhoto(
 
 export async function uploadChroniclerPhoto(
   file: File,
-  contributionId: string
+  contributionId: string,
+  index = 0
 ): Promise<string> {
   const ext = file.name.split(".").pop() ?? "jpg";
-  const path = `chronicler/${contributionId}/photos/${Date.now()}.${ext}`;
+  const path = `chronicler/${contributionId}/photos/${Date.now()}_${index}.${ext}`;
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, file);
   return getDownloadURL(storageRef);

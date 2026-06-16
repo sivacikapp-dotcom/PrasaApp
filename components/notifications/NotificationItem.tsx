@@ -46,10 +46,14 @@ export function NotificationItem({ notification, onRead, onClose }: Props) {
         return m.user_removed_from_group(extraUserName ?? actorName, categoryName ?? "");
       case "contribution_processed":
         return m.contribution_processed(actorName, categoryName ?? "");
+      case "access_request":
+        return m.access_request(actorName);
     }
   })();
 
-  const linkHref = notification.eventId
+  const linkHref = notification.type === "access_request"
+    ? "/admin"
+    : notification.eventId
     ? `/events/${notification.eventId}`
     : notification.contributionId
     ? `/dashboard/${notification.contributionId}`

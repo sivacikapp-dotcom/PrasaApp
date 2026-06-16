@@ -11,7 +11,7 @@ export const zh: Dictionary = {
     contributions: "贡献",
     events: "活动",
     chronicler: "记录员",
-    admin: "管理",
+    admin: "应用管理",
     signOut: "退出登录",
     settings: "设置",
     language: "语言",
@@ -567,6 +567,7 @@ export const zh: Dictionary = {
       user_added_to_group: "有人加入我的组",
       user_removed_from_group: "有人离开我的组",
       contribution_processed: "我的组有新贡献",
+      access_request: "访问请求",
     },
     prefLabels: {
       push: "推送",
@@ -587,6 +588,7 @@ export const zh: Dictionary = {
       user_added_to_group: (userName: string, groupName: string): string => `${userName} 已加入组「${groupName}」`,
       user_removed_from_group: (userName: string, groupName: string): string => `${userName} 已离开组「${groupName}」`,
       contribution_processed: (actor: string, groupName: string): string => `${actor} 在组「${groupName}」中添加了已处理的贡献`,
+      access_request: (name: string): string => `${name} 请求访问应用`,
     },
   },
 };

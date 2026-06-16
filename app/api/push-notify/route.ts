@@ -41,6 +41,8 @@ function buildBody(payload: PushPayload): string {
       return categoryName
         ? `Nový spracovaný príspevok v skupine „${categoryName}"`
         : "Nový spracovaný príspevok vo vašej skupine";
+    case "access_request":
+      return actorName ? `${actorName} požiadal o prístup do aplikácie` : "Nová žiadosť o prístup do aplikácie";
     default:
       return "Nová notifikácia z Kroniky";
   }
