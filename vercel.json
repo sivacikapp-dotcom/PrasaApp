@@ -16,6 +16,10 @@
         {
           "key": "Content-Security-Policy",
           "value": "default-src 'none'"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://prasa-app.vercel.app"
         }
       ]
     }
