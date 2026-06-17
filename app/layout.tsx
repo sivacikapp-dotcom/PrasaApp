@@ -4,6 +4,11 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { I18nProvider } from "@/contexts/I18nContext";
 import { PwaInit } from "@/components/PwaInit";
 
+// Force SSR on every request so middleware-generated nonces are applied to all
+// Next.js inline scripts. Without this, Vercel's ISR cache would serve stale
+// HTML without nonce attributes, causing CSP violations and a broken app.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Kronika",
   description: "Systém na zaznamenávanie udalostí pre kroniku spolku",

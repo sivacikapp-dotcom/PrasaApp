@@ -1,3 +1,14 @@
 {
-  "buildCommand": "NODE_OPTIONS=--max-old-space-size=4096 npm run build"
+  "buildCommand": "NODE_OPTIONS=--max-old-space-size=4096 npm run build",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        }
+      ]
+    }
+  ]
 }
