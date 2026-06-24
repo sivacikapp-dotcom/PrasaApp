@@ -435,7 +435,7 @@ function ChroniclerContent() {
 
       {/* ── Main page tabs ──────────────────────────────────────────────── */}
       <div className="sticky top-[57px] z-30 bg-canvas/95 backdrop-blur-sm border-b border-rim">
-        <div className="mx-auto max-w-2xl px-4 flex gap-0.5 py-2">
+        <div className="mx-auto max-w-2xl px-4 flex gap-0.5 py-2 overflow-x-auto scrollbar-none">
           {([
             { key: "prispevky" as PageTab, label: t.chronicler.tabContributions, badge: pendingCount > 0 ? pendingCount : undefined },
             { key: "skupiny" as PageTab, label: t.chronicler.tabGroups, badge: groups.length > 0 ? groups.length : undefined },
@@ -444,7 +444,7 @@ function ChroniclerContent() {
             <button
               key={key}
               onClick={() => setPageTab(key)}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+              className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                 pageTab === key
                   ? "bg-gold text-gold-text"
                   : "text-ink-dim hover:bg-surface hover:text-ink"
@@ -460,10 +460,10 @@ function ChroniclerContent() {
               )}
             </button>
           ))}
-          <div className="flex-1" />
+          <div className="flex-1 min-w-2" />
           <Link
             href="/chronicler/trash"
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-ink-dim hover:bg-surface hover:text-ink transition-colors"
+            className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-ink-dim hover:bg-surface hover:text-ink transition-colors"
           >
             <TrashIcon /> {t.chronicler.trashBtn}
           </Link>

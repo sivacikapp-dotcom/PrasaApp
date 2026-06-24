@@ -32,7 +32,6 @@ export function NavBar() {
 
   const isChronicler = hasRole("chronicler");
   const isAdmin = hasRole("admin");
-  const isChroniclerMode = isChronicler && pathname.startsWith("/chronicler");
 
   const links = [
     { href: "/dashboard", label: t.nav.contributions, show: true },
@@ -58,11 +57,7 @@ export function NavBar() {
 
   return (
     <>
-      <nav className={`sticky top-0 z-40 border-b bg-canvas/95 backdrop-blur-sm ${
-        isChroniclerMode
-          ? "border-b-violet-300 border-t-2 border-t-violet-500"
-          : "border-rim"
-      }`}>
+      <nav className="sticky top-0 z-40 border-b border-rim bg-canvas/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center gap-1 px-4 py-3">
           <div className="flex flex-1 items-center gap-0.5 overflow-x-auto scrollbar-none">
             {links
@@ -102,13 +97,6 @@ export function NavBar() {
               </span>
             )}
 
-            {isChroniclerMode && (
-              <span className="flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">
-                <PenIcon />
-                {t.nav.chroniclerBadge}
-              </span>
-            )}
-
             {/* Notification bell */}
             <NotificationBell onOpenSettings={() => openSettings("notifications")} />
 
@@ -117,9 +105,7 @@ export function NavBar() {
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 className={`flex items-center justify-center rounded-full transition-all ${
-                  isChroniclerMode
-                    ? "ring-2 ring-violet-400"
-                    : menuOpen
+                  menuOpen
                     ? "ring-2 ring-gold"
                     : "ring-1 ring-rim hover:ring-2 hover:ring-gold/60"
                 }`}
@@ -236,15 +222,6 @@ function CloudUpIcon() {
       <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 0 1 0 9Z" />
       <polyline points="12 12 12 8 10 10" />
       <line x1="12" y1="8" x2="14" y2="10" />
-    </svg>
-  );
-}
-
-function PenIcon() {
-  return (
-    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
     </svg>
   );
 }

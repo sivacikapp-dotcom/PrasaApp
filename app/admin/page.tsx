@@ -116,7 +116,7 @@ function AdminContent() {
   const [deleteTarget, setDeleteTarget] = useState<{ type: "cat" | "tag"; id: string; name: string } | null>(null);
 
   const contributors = users.filter(
-    (u) => u.status === "active" && !u.roles.includes("chronicler") && !u.roles.includes("admin")
+    (u) => u.status === "active" && !u.roles.includes("admin")
   );
   const pending = users.filter((u) => u.status === "pending");
 
