@@ -16,11 +16,19 @@ function makeRateLimiter(requests: number, window: `${number} s` | `${number} m`
     }
     return null;
   }
-  return new Ratelimit({
-    redis: new Redis({ url, token }),
-    limiter: Ratelimit.slidingWindow(requests, window),
-    analytics: false,
-  });
+  // A malformed URL/token throws synchronously here — if that happened at
+  // module scope uncaught, every route importing this file would crash on
+  // cold start (500 for the whole function, not just a rate-limit failure).
+  try {
+    return new Ratelimit({
+      redis: new Redis({ url, token }),
+      limiter: Ratelimit.slidingWindow(requests, window),
+      analytics: false,
+    });
+  } catch (err) {
+    console.error("[rateLimit] Neplatná konfigurácia Upstash Redis — rate limiting je vypnutý.", err);
+    return null;
+  }
 }
 
 // Lazy singletons — created once on first import per serverless instance
