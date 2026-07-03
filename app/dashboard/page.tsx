@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
@@ -22,6 +22,8 @@ import {
 } from "@/lib/contributionService";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import type { Contribution } from "@/types/contribution";
+
+const FILTERS_COLLAPSED_KEY = "dashboard-filters-collapsed";
 
 type MainTab = "mine" | "allProcessed" | "deleted";
 type StatusFilter = "all" | "processed" | "pending";
@@ -84,12 +86,54 @@ function FilterGroup({
             className="ml-auto flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-dim hover:text-ink"
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M3 6h18M6 12h12M9 18h6" />
+              {sortOrder === "dateDesc" ? (
+                <path d="M12 5v14M12 19l-5-5M12 19l5-5" />
+              ) : (
+                <path d="M12 19V5M12 5l-5 5M12 5l5 5" />
+              )}
             </svg>
             {sortOrder === "dateDesc" ? t.dashboard.sortDateDesc : t.dashboard.sortDateAsc}
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function FiltersPanel({
+  collapsed,
+  onToggle,
+  children,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="mb-4 rounded-xl border border-rim bg-surface">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2.5"
+      >
+        <span />
+        <span className="text-center text-[10px] font-semibold uppercase tracking-wide text-ink-subtle">
+          {t.dashboard.filtersSectionTitle}
+        </span>
+        <svg
+          className={`h-4 w-4 justify-self-end text-ink-subtle transition-transform ${
+            collapsed ? "" : "rotate-180"
+          }`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {!collapsed && <div className="space-y-3 px-3 pb-2.5">{children}</div>}
     </div>
   );
 }
@@ -120,6 +164,19 @@ function DashboardContent() {
   const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>("all");
   const [allEventFilter, setAllEventFilter] = useState<EventFilter>("all");
   const [allSortOrder, setAllSortOrder] = useState<SortOrder | null>(null);
+
+  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
+  useEffect(() => {
+    const stored = localStorage.getItem(FILTERS_COLLAPSED_KEY);
+    if (stored !== null) setFiltersCollapsed(stored === "true");
+  }, []);
+  function toggleFiltersCollapsed() {
+    setFiltersCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(FILTERS_COLLAPSED_KEY, String(next));
+      return next;
+    });
+  }
 
   // Sync sort from preferences once loaded (only if user hasn't manually changed it this session)
   const [sortSynced, setSortSynced] = useState(false);
@@ -199,7 +256,7 @@ function DashboardContent() {
           {(tab === "deleted" || loadDeleted || deleted.length > 0) && (
             <button
               onClick={() => setTab("deleted")}
-              className={`flex-[1] rounded-lg py-1.5 text-xs font-medium transition-colors ${
+              className={`flex-[1] rounded-lg py-1.5 text-sm font-medium transition-colors ${
                 tab === "deleted"
                   ? "bg-danger text-white shadow-sm"
                   : "text-danger/70 hover:text-danger"
@@ -212,7 +269,7 @@ function DashboardContent() {
 
         {/* Filters: Moje príspevky */}
         {tab === "mine" && (
-          <div className="mb-4 rounded-xl border border-rim bg-surface px-3 py-2.5 space-y-3">
+          <FiltersPanel collapsed={filtersCollapsed} onToggle={toggleFiltersCollapsed}>
             <FilterGroup label={t.dashboard.filterLabelStatus}>
               <FilterChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>
                 {t.dashboard.filterAll}
@@ -239,12 +296,12 @@ function DashboardContent() {
                 {t.dashboard.filterNotInEvent}
               </FilterChip>
             </FilterGroup>
-          </div>
+          </FiltersPanel>
         )}
 
         {/* Filters: Všetky spracované */}
         {tab === "allProcessed" && (
-          <div className="mb-4 rounded-xl border border-rim bg-surface px-3 py-2.5 space-y-3">
+          <FiltersPanel collapsed={filtersCollapsed} onToggle={toggleFiltersCollapsed}>
             <FilterGroup label={t.dashboard.filterLabelOwnership}>
               <FilterChip active={ownershipFilter === "all"} onClick={() => setOwnershipFilter("all")}>
                 {t.dashboard.filterAll}
@@ -271,7 +328,7 @@ function DashboardContent() {
                 {t.dashboard.filterNotInEvent}
               </FilterChip>
             </FilterGroup>
-          </div>
+          </FiltersPanel>
         )}
 
         {/* Content */}

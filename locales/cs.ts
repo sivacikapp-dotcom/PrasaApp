@@ -50,8 +50,8 @@ export const cs: Dictionary = {
     filterNotInEvent: "Není v události",
     filterMine: "Moje",
     filterNotMine: "Cizí",
-    sortDateDesc: "Datum ↓",
-    sortDateAsc: "Datum ↑",
+    sortDateDesc: "Od nejnovějšího",
+    sortDateAsc: "Od nejstaršího",
     allProcessedEmpty: "Žádné zpracované příspěvky.",
     allProcessedEmptyHint: "Příspěvky se zobrazí po zpracování kronikářem a pokud máte přístup ke dané skupině.",
     tabDeleted: "Smazané",
@@ -60,6 +60,7 @@ export const cs: Dictionary = {
     filterLabelStatus: "Stav",
     filterLabelEvent: "Událost",
     filterLabelOwnership: "Přispěvatel",
+    filtersSectionTitle: "Filtry/Řazení",
   },
   newContribution: {
     title: "Nový příspěvek",

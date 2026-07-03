@@ -50,8 +50,8 @@ export const zh: Dictionary = {
     filterNotInEvent: "不在事件中",
     filterMine: "我的",
     filterNotMine: "非我的",
-    sortDateDesc: "日期 ↓",
-    sortDateAsc: "日期 ↑",
+    sortDateDesc: "从新到旧",
+    sortDateAsc: "从旧到新",
     allProcessedEmpty: "没有可访问的已处理贡献。",
     allProcessedEmptyHint: "贡献经记录员处理后且您有群组访问权限时才会显示。",
     tabDeleted: "已删除",
@@ -60,6 +60,7 @@ export const zh: Dictionary = {
     filterLabelStatus: "状态",
     filterLabelEvent: "活动",
     filterLabelOwnership: "贡献者",
+    filtersSectionTitle: "筛选/排序",
   },
   newContribution: {
     title: "新建贡献",

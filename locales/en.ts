@@ -50,8 +50,8 @@ export const en: Dictionary = {
     filterNotInEvent: "Not in event",
     filterMine: "Mine",
     filterNotMine: "Not mine",
-    sortDateDesc: "Date ↓",
-    sortDateAsc: "Date ↑",
+    sortDateDesc: "Newest first",
+    sortDateAsc: "Oldest first",
     allProcessedEmpty: "No processed contributions.",
     allProcessedEmptyHint: "Contributions appear here once a chronicler processes them and you have access to the group.",
     tabDeleted: "Deleted",
@@ -60,6 +60,7 @@ export const en: Dictionary = {
     filterLabelStatus: "Status",
     filterLabelEvent: "Event",
     filterLabelOwnership: "Contributor",
+    filtersSectionTitle: "Filters/Sorting",
   },
   newContribution: {
     title: "New contribution",

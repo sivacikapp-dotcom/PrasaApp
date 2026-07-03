@@ -50,8 +50,8 @@ export const sk = {
     filterNotInEvent: "Nie v udalosti",
     filterMine: "Moje",
     filterNotMine: "Nie moje",
-    sortDateDesc: "Dátum ↓",
-    sortDateAsc: "Dátum ↑",
+    sortDateDesc: "Od najnovšieho",
+    sortDateAsc: "Od najstaršieho",
     allProcessedEmpty: "Žiadne spracované príspevky.",
     allProcessedEmptyHint: "Príspevky sa zobrazia po spracovaní kronikárom a ak máte prístup k danej skupine.",
     deletedEmpty: "Žiadne vymazané príspevky.",
@@ -59,6 +59,7 @@ export const sk = {
     filterLabelStatus: "Stav",
     filterLabelEvent: "Udalosť",
     filterLabelOwnership: "Prispievateľ",
+    filtersSectionTitle: "Filtre/Zoradenie",
   },
   newContribution: {
     title: "Nový príspevok",

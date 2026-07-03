@@ -10,7 +10,8 @@ const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200 MB
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;  // 50 MB
 
 function assertType(file: File | Blob, allowed: Set<string>, label: string) {
-  if (!allowed.has(file.type)) throw new Error(`Nepodporovaný formát súboru (${label})`);
+  const baseType = file.type.split(";")[0].trim();
+  if (!allowed.has(baseType)) throw new Error(`Nepodporovaný formát súboru (${label})`);
 }
 
 function assertSize(file: File | Blob, max: number, label: string) {

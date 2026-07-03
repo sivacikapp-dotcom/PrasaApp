@@ -50,8 +50,8 @@ export const pl: Dictionary = {
     filterNotInEvent: "Nie w wydarzeniu",
     filterMine: "Moje",
     filterNotMine: "Nie moje",
-    sortDateDesc: "Data ↓",
-    sortDateAsc: "Data ↑",
+    sortDateDesc: "Od najnowszych",
+    sortDateAsc: "Od najstarszych",
     allProcessedEmpty: "Brak przetworzonych postów.",
     allProcessedEmptyHint: "Posty pojawią się po przetworzeniu przez kronikarza i gdy masz dostęp do danej grupy.",
     tabDeleted: "Usunięte",
@@ -60,6 +60,7 @@ export const pl: Dictionary = {
     filterLabelStatus: "Status",
     filterLabelEvent: "Wydarzenie",
     filterLabelOwnership: "Autor",
+    filtersSectionTitle: "Filtry/Sortowanie",
   },
   newContribution: {
     title: "Nowy post",

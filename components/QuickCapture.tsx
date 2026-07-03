@@ -254,11 +254,14 @@ export function QuickCapture() {
   return (
     <div className="mb-5 rounded-xl border border-rim bg-surface p-4">
       {/* Header */}
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+      <div className="mb-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <span />
+        <span className="text-center text-xs font-semibold uppercase tracking-wide text-ink-subtle">
           {t.quickCapture.title}
         </span>
-        <GpsIndicator status={locState.status} onRetry={captureLocation} />
+        <div className="flex justify-end">
+          <GpsIndicator status={locState.status} onRetry={captureLocation} />
+        </div>
       </div>
 
       {/* Buttons row */}
@@ -269,7 +272,7 @@ export function QuickCapture() {
           type="button"
           onClick={() => cameraRef.current?.click()}
           disabled={busy || anyRecording || voiceReady}
-          className="flex items-center gap-2 rounded-xl bg-gold px-4 py-2.5 text-sm font-semibold text-gold-text shadow-sm active:scale-95 transition-transform disabled:opacity-50"
+          className="flex items-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
         >
           <CameraIcon />
           {t.quickCapture.photo}
@@ -372,7 +375,7 @@ function GpsIndicator({ status, onRetry }: { status: string; onRetry: () => void
 
 function CameraIcon() {
   return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <svg className="h-4 w-4 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
       <circle cx="12" cy="13" r="4" />
     </svg>
@@ -381,7 +384,7 @@ function CameraIcon() {
 
 function MicIcon() {
   return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <svg className="h-4 w-4 text-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
       <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" />
     </svg>
@@ -390,7 +393,7 @@ function MicIcon() {
 
 function VideoIcon() {
   return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <svg className="h-4 w-4 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <polygon points="23 7 16 12 23 17 23 7" />
       <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
     </svg>

@@ -51,8 +51,8 @@ export const fr: Dictionary = {
     filterNotInEvent: "Hors événement",
     filterMine: "Les miens",
     filterNotMine: "Pas les miens",
-    sortDateDesc: "Date ↓",
-    sortDateAsc: "Date ↑",
+    sortDateDesc: "Du plus récent",
+    sortDateAsc: "Du plus ancien",
     allProcessedEmpty: "Aucune contribution traitée.",
     allProcessedEmptyHint: "Les contributions apparaissent ici une fois traitées par le chroniqueur et si vous avez accès au groupe.",
     tabDeleted: "Supprimées",
@@ -61,6 +61,7 @@ export const fr: Dictionary = {
     filterLabelStatus: "Statut",
     filterLabelEvent: "Événement",
     filterLabelOwnership: "Contributeur",
+    filtersSectionTitle: "Filtres/Tri",
   },
   newContribution: {
     title: "Nouvelle contribution",
