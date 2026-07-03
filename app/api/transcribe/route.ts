@@ -4,6 +4,10 @@ import { z } from "zod";
 import { verifyApiToken } from "@/lib/apiAuth";
 import { transcribeLimiter, checkRateLimit } from "@/lib/rateLimit";
 
+// Voice recordings can be up to 3 minutes; fetching + Whisper transcription
+// can exceed the platform's default serverless timeout, so raise it.
+export const maxDuration = 60;
+
 const ALLOWED_STORAGE_ORIGINS = [
   "https://firebasestorage.googleapis.com",
   ...(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET

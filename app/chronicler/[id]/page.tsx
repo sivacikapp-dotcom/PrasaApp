@@ -236,6 +236,11 @@ function ChroniclerDetailContent() {
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ voiceUrl: v.url }),
       });
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        setTranscribeVoiceError({ index, msg: t.chroniclerDetail.unknownError });
+        return;
+      }
       const data = await res.json() as { transcript?: string; error?: string };
       if (data.transcript) {
         setVoiceTranscripts((prev) => {
@@ -269,6 +274,11 @@ function ChroniclerDetailContent() {
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ voiceUrl: url }),
       });
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        setTranscribeChroniclerError(t.chroniclerDetail.unknownError);
+        return;
+      }
       const data = await res.json() as { transcript?: string; error?: string };
       if (data.transcript) {
         setChroniclerVoiceTranscript(data.transcript);
