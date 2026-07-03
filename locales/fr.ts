@@ -101,12 +101,12 @@ export const fr: Dictionary = {
   },
   quickCapture: {
     title: "Capture rapide",
-    photo: "Prendre une photo",
-    voiceReady: "Enregistrer la voix",
+    photo: "Photo",
+    voiceReady: "Voix",
     voiceStart: "Démarrer l'enregistrement",
     voiceCancel: "Annuler",
     voiceStop: (time) => `${time} – Arrêter`,
-    video: "Enregistrer une vidéo",
+    video: "Vidéo",
     statusUploading: "Téléversement vers Kronika…",
     statusSuccess: "✓ Contribution enregistrée",
     statusOffline:

@@ -19,6 +19,7 @@ import {
 import {
   restoreContribution,
   permanentlyDeleteContribution,
+  compareByEventDate,
 } from "@/lib/contributionService";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import type { Contribution } from "@/types/contribution";
@@ -33,7 +34,7 @@ type SortOrder = "dateDesc" | "dateAsc";
 
 function applySort(items: Contribution[], order: SortOrder): Contribution[] {
   return [...items].sort((a, b) => {
-    const diff = a.eventDate.getTime() - b.eventDate.getTime();
+    const diff = compareByEventDate(a, b);
     return order === "dateDesc" ? -diff : diff;
   });
 }

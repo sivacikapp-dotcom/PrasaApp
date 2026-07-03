@@ -13,6 +13,8 @@ import type { Group } from "@/types/contribution";
 
 type CaptureStatus = "idle" | "uploading" | "success" | "offline" | "error";
 
+const MAX_VOICE_SECONDS = 180;
+
 function pickAudioMimeType(): string {
   const candidates = [
     "audio/mp4;codecs=mp4a.40.2",
@@ -50,6 +52,7 @@ export function QuickCapture() {
   const voiceMediaRef = useRef<MediaRecorder | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
   const voiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const voiceSecondsRef = useRef(0);
 
   useEffect(() => {
     captureLocation();
@@ -189,8 +192,15 @@ export function QuickCapture() {
       mr.start(250);
       voiceMediaRef.current = mr;
       setVoiceRecording(true);
+      voiceSecondsRef.current = 0;
       setVoiceSeconds(0);
-      voiceTimerRef.current = setInterval(() => setVoiceSeconds((s) => s + 1), 1000);
+      voiceTimerRef.current = setInterval(() => {
+        voiceSecondsRef.current += 1;
+        setVoiceSeconds(voiceSecondsRef.current);
+        if (voiceSecondsRef.current >= MAX_VOICE_SECONDS) {
+          stopVoice();
+        }
+      }, 1000);
     } catch {
       setVoiceReady(false);
     }
@@ -272,7 +282,7 @@ export function QuickCapture() {
           type="button"
           onClick={() => cameraRef.current?.click()}
           disabled={busy || anyRecording || voiceReady}
-          className="flex items-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
         >
           <CameraIcon />
           {t.quickCapture.photo}
@@ -292,7 +302,7 @@ export function QuickCapture() {
             type="button"
             onClick={() => setVoiceReady(true)}
             disabled={busy || anyRecording}
-            className="flex items-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
           >
             <MicIcon />
             {t.quickCapture.voiceReady}
@@ -303,7 +313,7 @@ export function QuickCapture() {
             <button
               type="button"
               onClick={startVoice}
-              className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-ink active:scale-95 transition-transform"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-ink active:scale-95 transition-transform"
             >
               <span className="h-2 w-2 rounded-full bg-ink" />
               {t.quickCapture.voiceStart}
@@ -311,7 +321,7 @@ export function QuickCapture() {
             <button
               type="button"
               onClick={() => setVoiceReady(false)}
-              className="flex items-center gap-2 rounded-xl border border-rim px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-rim px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform"
             >
               {t.quickCapture.voiceCancel}
             </button>
@@ -321,10 +331,10 @@ export function QuickCapture() {
           <button
             type="button"
             onClick={stopVoice}
-            className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-ink active:scale-95 transition-transform"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-ink active:scale-95 transition-transform"
           >
             <span className="h-2 w-2 rounded-full bg-ink animate-pulse" />
-            {t.quickCapture.voiceStop(fmtTime(voiceSeconds))}
+            {t.quickCapture.voiceStop(fmtTime(MAX_VOICE_SECONDS - voiceSeconds))}
           </button>
         )}
 
@@ -333,7 +343,7 @@ export function QuickCapture() {
           type="button"
           onClick={() => videoRef.current?.click()}
           disabled={busy || anyRecording || voiceReady}
-          className="flex items-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-rim-strong bg-surface-high px-4 py-2.5 text-sm font-semibold text-ink-dim hover:text-ink active:scale-95 transition-transform disabled:opacity-50"
         >
           <VideoIcon />
           {t.quickCapture.video}

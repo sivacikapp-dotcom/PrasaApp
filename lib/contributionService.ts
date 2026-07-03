@@ -28,6 +28,14 @@ function tsToDate(v: unknown): Date {
   return new Date(v as string);
 }
 
+// Ties on eventDate (e.g. multiple contributions logged for the same day) are
+// broken by createdAt, so the order stays stable and matches the order the
+// contributions were actually added instead of depending on Firestore's
+// unspecified tie-breaking.
+export function compareByEventDate(a: Contribution, b: Contribution): number {
+  return a.eventDate.getTime() - b.eventDate.getTime() || a.createdAt.getTime() - b.createdAt.getTime();
+}
+
 function fromFirestore(id: string, data: Record<string, unknown>): Contribution {
   return {
     id,
@@ -128,7 +136,8 @@ export async function getAllContributions(): Promise<Contribution[]> {
   );
   return snap.docs
     .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
-    .filter((c) => c.status !== "deleted");
+    .filter((c) => c.status !== "deleted")
+    .sort(compareByEventDate);
 }
 
 export async function getContributionsByUser(uid: string): Promise<Contribution[]> {
@@ -138,7 +147,7 @@ export async function getContributionsByUser(uid: string): Promise<Contribution[
   return snap.docs
     .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
     .filter((c) => c.status !== "deleted")
-    .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
+    .sort(compareByEventDate);
 }
 
 export interface ContributorUpdateInput {
@@ -285,6 +294,7 @@ export function subscribeToAllContributions(
       snap.docs
         .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
         .filter((c) => c.status !== "deleted")
+        .sort(compareByEventDate)
     )
   );
 }
@@ -299,7 +309,7 @@ export function subscribeToMyContributions(
       const results = snap.docs
         .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
         .filter((c) => c.status !== "deleted")
-        .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
+        .sort(compareByEventDate);
       cb(results);
     }
   );
@@ -315,7 +325,7 @@ export function subscribeToAccessibleContributions(
       const results = snap.docs
         .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
         .filter((c) => c.status !== "deleted")
-        .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
+        .sort(compareByEventDate);
       cb(results);
     }
   );
