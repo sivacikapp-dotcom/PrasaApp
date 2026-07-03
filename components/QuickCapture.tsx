@@ -189,7 +189,11 @@ export function QuickCapture() {
         }
       };
 
-      mr.start(250);
+      // No timeslice: some browsers (notably Safari) emit each timesliced
+      // chunk as an independently-encoded fragment, so concatenating them
+      // produces a corrupt/near-zero-length file. Recording without a
+      // timeslice yields a single complete, valid file on stop.
+      mr.start();
       voiceMediaRef.current = mr;
       setVoiceRecording(true);
       voiceSecondsRef.current = 0;

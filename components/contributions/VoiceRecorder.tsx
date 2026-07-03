@@ -63,7 +63,11 @@ export function VoiceRecorder({ existingUrl, maxSeconds, onRecorded, onDelete }:
         onRecorded(blob);
         if (timerRef.current) clearInterval(timerRef.current);
       };
-      mr.start(250);
+      // No timeslice: some browsers (notably Safari) emit each timesliced
+      // chunk as an independently-encoded fragment, so concatenating them
+      // produces a corrupt/near-zero-length file. Recording without a
+      // timeslice yields a single complete, valid file on stop.
+      mr.start();
       mediaRef.current = mr;
       setState("recording");
       secondsRef.current = 0;
