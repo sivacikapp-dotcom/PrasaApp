@@ -13,6 +13,7 @@ import { getEvent } from "@/lib/eventService";
 import { getContribution } from "@/lib/contributionService";
 import { getCategories } from "@/lib/categoryService";
 import { getAllUsers } from "@/lib/userService";
+import { MediaLightbox, type LightboxItem } from "@/components/ui/MediaLightbox";
 import type { ChronicleEvent, Contribution, Group } from "@/types/contribution";
 import type { AppUser } from "@/types/user";
 
@@ -48,12 +49,13 @@ function buildEntities(contributions: Contribution[], entityOrder: string[]): En
   const all: Entity[] = [];
   for (const c of dateSorted) {
     const photos = [...c.chroniclerPhotoUrls, ...c.photoUrls];
+    const videos = [...c.chroniclerVideoUrls, ...c.videoUrls];
     for (const type of ENTITY_TYPE_ORDER) {
       if (type === "text" && c.texts.length > 0) all.push({ key: `${c.id}:text`, type, contribution: c });
       else if (type === "voiceUrl" && c.voices.length > 0) all.push({ key: `${c.id}:voiceUrl`, type, contribution: c });
       else if (type === "chroniclerText" && c.chroniclerText) all.push({ key: `${c.id}:chroniclerText`, type, contribution: c });
       else if (type === "chroniclerVoiceUrl" && (c.chroniclerVoiceUrl || c.chroniclerVoiceTranscript)) all.push({ key: `${c.id}:chroniclerVoiceUrl`, type, contribution: c });
-      else if (type === "photos" && photos.length > 0) all.push({ key: `${c.id}:photos`, type, contribution: c });
+      else if (type === "photos" && (photos.length > 0 || videos.length > 0)) all.push({ key: `${c.id}:photos`, type, contribution: c });
     }
   }
   if (entityOrder.length === 0) return all;
@@ -77,6 +79,7 @@ function EventDetailContent() {
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
+  const [lightbox, setLightbox] = useState<{ items: LightboxItem[]; index: number } | null>(null);
 
   useEffect(() => {
     if (!appUser) return;
@@ -246,14 +249,34 @@ function EventDetailContent() {
               }
               if (type === "photos") {
                 const photos = [...c.chroniclerPhotoUrls, ...c.photoUrls];
+                const videos = [...c.chroniclerVideoUrls, ...c.videoUrls];
+                const media: LightboxItem[] = [
+                  ...photos.map((url): LightboxItem => ({ url, type: "photo" })),
+                  ...videos.map((url): LightboxItem => ({ url, type: "video" })),
+                ];
                 return (
-                  <div key={key} className={`grid gap-1.5 ${photos.length === 1 ? "grid-cols-1" : "grid-cols-3"}`}>
-                    {photos.map((url) => (
-                      <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-surface-high">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover"
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                      </div>
+                  <div key={key} className={`grid gap-1.5 ${media.length === 1 ? "grid-cols-1" : "grid-cols-3"}`}>
+                    {media.map((item, mi) => (
+                      <button
+                        key={item.url}
+                        type="button"
+                        onClick={() => setLightbox({ items: media, index: mi })}
+                        className="relative aspect-square rounded-lg overflow-hidden bg-surface-high"
+                      >
+                        {item.type === "photo" ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.url} alt="" className="absolute inset-0 h-full w-full object-cover"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                        ) : (
+                          <>
+                            <video src={item.url} preload="metadata" muted playsInline
+                              className="absolute inset-0 h-full w-full object-cover" />
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/20">
+                              <PlaySmallIcon />
+                            </span>
+                          </>
+                        )}
+                      </button>
                     ))}
                   </div>
                 );
@@ -263,6 +286,15 @@ function EventDetailContent() {
           </div>
         )}
       </main>
+
+      {lightbox && (
+        <MediaLightbox
+          items={lightbox.items}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
+        />
+      )}
     </>
   );
 }
@@ -359,6 +391,14 @@ function PinIcon() {
     <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function PlaySmallIcon() {
+  return (
+    <svg className="h-8 w-8 text-white drop-shadow" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M8 5v14l11-7z" />
     </svg>
   );
 }

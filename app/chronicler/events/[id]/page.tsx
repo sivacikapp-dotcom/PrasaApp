@@ -11,6 +11,7 @@ import { RouteGuard } from "@/components/RouteGuard";
 import { Button } from "@/components/ui/Button";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { ConfirmModal } from "@/components/ui/Modal";
+import { MediaLightbox, type LightboxItem } from "@/components/ui/MediaLightbox";
 import { getContribution, updateContributionByChronicler } from "@/lib/contributionService";
 import {
   getEvent,
@@ -70,12 +71,13 @@ function buildEntities(contributions: Contribution[], entityOrder: string[]): En
   const all: Entity[] = [];
   for (const c of dateSorted) {
     const photos = [...c.chroniclerPhotoUrls, ...c.photoUrls];
+    const videos = [...c.chroniclerVideoUrls, ...c.videoUrls];
     for (const type of ENTITY_TYPE_ORDER) {
       if (type === "text" && c.texts.length > 0) all.push({ key: `${c.id}:text`, type, contribution: c });
       else if (type === "voiceUrl" && c.voices.length > 0) all.push({ key: `${c.id}:voiceUrl`, type, contribution: c });
       else if (type === "chroniclerText" && c.chroniclerText) all.push({ key: `${c.id}:chroniclerText`, type, contribution: c });
       else if (type === "chroniclerVoiceUrl" && (c.chroniclerVoiceUrl || c.chroniclerVoiceTranscript)) all.push({ key: `${c.id}:chroniclerVoiceUrl`, type, contribution: c });
-      else if (type === "photos" && photos.length > 0) all.push({ key: `${c.id}:photos`, type, contribution: c });
+      else if (type === "photos" && (photos.length > 0 || videos.length > 0)) all.push({ key: `${c.id}:photos`, type, contribution: c });
     }
   }
 
@@ -120,6 +122,7 @@ function EventDetailContent() {
   const [userPickerOpen, setUserPickerOpen] = useState(false);
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<{ items: LightboxItem[]; index: number } | null>(null);
   const [pendingConflict, setPendingConflict] = useState<{
     dominantCategoryId: string;
     compatible: string[];
@@ -509,14 +512,34 @@ function EventDetailContent() {
                       )}
                       {type === "photos" && (() => {
                         const photos = [...c.chroniclerPhotoUrls, ...c.photoUrls];
+                        const videos = [...c.chroniclerVideoUrls, ...c.videoUrls];
+                        const media: LightboxItem[] = [
+                          ...photos.map((url): LightboxItem => ({ url, type: "photo" })),
+                          ...videos.map((url): LightboxItem => ({ url, type: "video" })),
+                        ];
                         return (
-                          <div className={`grid gap-1.5 ${photos.length === 1 ? "grid-cols-1" : "grid-cols-3"}`}>
-                            {photos.map((url) => (
-                              <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-surface-high">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover"
-                                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                              </div>
+                          <div className={`grid gap-1.5 ${media.length === 1 ? "grid-cols-1" : "grid-cols-3"}`}>
+                            {media.map((item, mi) => (
+                              <button
+                                key={item.url}
+                                type="button"
+                                onClick={() => setLightbox({ items: media, index: mi })}
+                                className="relative aspect-square rounded-lg overflow-hidden bg-surface-high"
+                              >
+                                {item.type === "photo" ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={item.url} alt="" className="absolute inset-0 h-full w-full object-cover"
+                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                                ) : (
+                                  <>
+                                    <video src={item.url} preload="metadata" muted playsInline
+                                      className="absolute inset-0 h-full w-full object-cover" />
+                                    <span className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                      <PlaySmallIcon />
+                                    </span>
+                                  </>
+                                )}
+                              </button>
                             ))}
                           </div>
                         );
@@ -668,6 +691,15 @@ function EventDetailContent() {
           onCancel={() => { setConflictOpen(false); setPendingConflict(null); }}
         />
       )}
+
+      {lightbox && (
+        <MediaLightbox
+          items={lightbox.items}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
+        />
+      )}
     </>
   );
 }
@@ -715,6 +747,9 @@ function EyeOffSmallIcon() {
 }
 function RemoveEditorIcon() {
   return <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
+}
+function PlaySmallIcon() {
+  return <svg className="h-8 w-8 text-white drop-shadow" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>;
 }
 
 // ── Tagged participants block ──────────────────────────────────────────────────
