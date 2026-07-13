@@ -386,6 +386,8 @@ function ChroniclerDetailContent() {
         categories: [],
         hashtags: [],
         editorIds: [],
+        type: "compiled",
+        allowedContributorIds: [],
         createdBy: appUser.uid,
         createdAt: new Date(),
         updatedAt: new Date(),

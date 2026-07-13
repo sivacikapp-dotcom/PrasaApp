@@ -21,6 +21,8 @@ export interface EventListPrefs {
 export interface UserPreferences {
   contributions: ContributionListPrefs;
   events: EventListPrefs;
+  /** Group IDs preselected by default when creating a new contribution. */
+  defaultGroupIds: string[];
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -39,4 +41,5 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
     showContributionCount: true,
     showTaggedUsers: "yes",
   },
+  defaultGroupIds: [],
 };

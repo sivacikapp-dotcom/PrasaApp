@@ -41,3 +41,6 @@ next-env.d.ts
 /public/ffmpeg/
 
 .vercel
+
+# security scan reports — local only, not for version control
+*ZAP-Report*.html

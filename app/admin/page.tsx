@@ -115,9 +115,7 @@ function AdminContent() {
   const [accessUpdating, setAccessUpdating] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "cat" | "tag"; id: string; name: string } | null>(null);
 
-  const contributors = users.filter(
-    (u) => u.status === "active" && !u.roles.includes("admin")
-  );
+  const contributors = users.filter((u) => u.status === "active");
   const pending = users.filter((u) => u.status === "pending");
 
   useEffect(() => {
@@ -282,7 +280,7 @@ function AdminContent() {
             ) : (
               <div className="space-y-2">
                 {filteredUsers.map((user) => {
-                  const isContributor = user.status === "active" && !user.roles.includes("chronicler") && !user.roles.includes("admin");
+                  const canManageGroups = user.status === "active";
                   const isExpanded = expandedUserId === user.uid;
                   const userCats = categories.filter((c) => c.allowedUserIds.includes(user.uid));
 
@@ -319,7 +317,7 @@ function AdminContent() {
                             )}
                           </div>
                         </div>
-                        {isContributor && categories.length > 0 && (
+                        {canManageGroups && categories.length > 0 && (
                           <button
                             type="button"
                             onClick={() => setExpandedUserId(isExpanded ? null : user.uid)}

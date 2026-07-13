@@ -18,7 +18,7 @@ import {
 import { db } from "./firebase";
 import { getCategories } from "./categoryService";
 import { createNotificationsForUsers, type Actor, type NotificationInput } from "./notificationService";
-import type { ChronicleEvent } from "@/types/contribution";
+import type { ChronicleEvent, EventType } from "@/types/contribution";
 
 function tsToDate(v: unknown): Date {
   if (!v) return new Date();
@@ -42,6 +42,8 @@ function fromFirestore(id: string, data: Record<string, unknown>): ChronicleEven
     categories: (data.categories as string[]) ?? [],
     hashtags: (data.hashtags as string[]) ?? [],
     editorIds: (data.editorIds as string[]) ?? [],
+    type: (data.type as EventType) ?? "compiled",
+    allowedContributorIds: (data.allowedContributorIds as string[]) ?? [],
     createdBy: (data.createdBy as string) ?? "",
     createdAt: tsToDate(data.createdAt),
     updatedAt: tsToDate(data.updatedAt),
@@ -89,10 +91,15 @@ export async function createEvent(input: {
   categoryId: string | null;
   createdBy: string;
   actor?: Actor;
+  type?: EventType;
+  allowedContributorIds?: string[];
 }): Promise<string> {
+  const type = input.type ?? "compiled";
+  const directContributorIds = type === "direct" ? (input.allowedContributorIds ?? []) : [];
+
   let allowedUserIds: string[] = [];
   let categoryName = "";
-  if (input.categoryId) {
+  if (type === "compiled" && input.categoryId) {
     const allCats = await getCategories();
     const cat = allCats.find((c) => c.id === input.categoryId);
     allowedUserIds = cat?.allowedUserIds ?? [];
@@ -107,37 +114,44 @@ export async function createEvent(input: {
     description: null,
     contributionIds: input.contributionIds,
     entityOrder: [],
-    categoryId: input.categoryId ?? null,
+    categoryId: type === "direct" ? null : (input.categoryId ?? null),
     hiddenItems: [],
     categories: [],
     hashtags: [],
     editorIds: [],
+    type,
+    allowedContributorIds: directContributorIds,
     createdBy: input.createdBy,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
   await markContributionsProcessed(input.contributionIds, allowedUserIds);
 
-  if (input.actor && input.contributionIds.length > 0) {
-    const ownerMap = await getContributorIds(input.contributionIds);
-    const uniqueOwners = [...new Set(ownerMap.values())].filter((uid) => uid !== input.actor!.uid);
+  if (input.actor) {
     const notifications: NotificationInput[] = [];
 
-    // Notify contribution owners
-    for (const ownerId of uniqueOwners) {
-      notifications.push({
-        userId: ownerId,
-        type: "contribution_added_to_event",
-        actorId: input.actor.uid,
-        actorName: input.actor.displayName,
-        actorPhotoURL: input.actor.photoURL,
-        eventId: ref.id,
-        eventTitle: input.title,
-      });
+    if (input.contributionIds.length > 0) {
+      const ownerMap = await getContributorIds(input.contributionIds);
+      const uniqueOwners = [...new Set(ownerMap.values())].filter((uid) => uid !== input.actor!.uid);
+
+      // Notify contribution owners
+      for (const ownerId of uniqueOwners) {
+        notifications.push({
+          userId: ownerId,
+          type: "contribution_added_to_event",
+          actorId: input.actor.uid,
+          actorName: input.actor.displayName,
+          actorPhotoURL: input.actor.photoURL,
+          eventId: ref.id,
+          eventTitle: input.title,
+        });
+      }
     }
 
-    // Notify all category members about the new event
-    const memberIds = allowedUserIds.filter((uid) => uid !== input.actor!.uid);
+    // Notify all category members (compiled) or invited contributors (direct) about the new event
+    const memberIds = (type === "direct" ? directContributorIds : allowedUserIds).filter(
+      (uid) => uid !== input.actor!.uid
+    );
     for (const uid of memberIds) {
       notifications.push({
         userId: uid,
@@ -147,8 +161,8 @@ export async function createEvent(input: {
         actorPhotoURL: input.actor.photoURL,
         eventId: ref.id,
         eventTitle: input.title,
-        categoryId: input.categoryId ?? undefined,
-        categoryName: categoryName || undefined,
+        categoryId: type === "direct" ? undefined : (input.categoryId ?? undefined),
+        categoryName: type === "direct" ? undefined : (categoryName || undefined),
       });
     }
 
@@ -237,7 +251,8 @@ export async function getEventsForUser(
   return all.filter((ev) => {
     const categoryOk = ev.categoryId != null && allowedCategoryIds.includes(ev.categoryId);
     const isEditor = uid != null && ev.editorIds.includes(uid);
-    return categoryOk || isEditor;
+    const isDirectContributor = uid != null && ev.allowedContributorIds.includes(uid);
+    return categoryOk || isEditor || isDirectContributor;
   });
 }
 
@@ -251,6 +266,20 @@ export async function addEventEditor(eventId: string, uid: string): Promise<void
 export async function removeEventEditor(eventId: string, uid: string): Promise<void> {
   await updateDoc(doc(db, "events", eventId), {
     editorIds: arrayRemove(uid),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function addDirectEventContributor(eventId: string, uid: string): Promise<void> {
+  await updateDoc(doc(db, "events", eventId), {
+    allowedContributorIds: arrayUnion(uid),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function removeDirectEventContributor(eventId: string, uid: string): Promise<void> {
+  await updateDoc(doc(db, "events", eventId), {
+    allowedContributorIds: arrayRemove(uid),
     updatedAt: serverTimestamp(),
   });
 }

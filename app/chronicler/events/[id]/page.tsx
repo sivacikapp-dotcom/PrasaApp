@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { MediaLightbox, type LightboxItem } from "@/components/ui/MediaLightbox";
-import { getContribution, updateContributionByChronicler } from "@/lib/contributionService";
+import { getContribution, getContributionsByDirectEvent, updateContributionByChronicler } from "@/lib/contributionService";
 import {
   getEvent,
   updateEvent,
@@ -23,6 +23,8 @@ import {
   setEventEntityOrder,
   addEventEditor,
   removeEventEditor,
+  addDirectEventContributor,
+  removeDirectEventContributor,
 } from "@/lib/eventService";
 import { getCategories } from "@/lib/categoryService";
 import { getAllUsers } from "@/lib/userService";
@@ -120,6 +122,8 @@ function EventDetailContent() {
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [editors, setEditors] = useState<AppUser[]>([]);
   const [userPickerOpen, setUserPickerOpen] = useState(false);
+  const [directContributors, setDirectContributors] = useState<AppUser[]>([]);
+  const [directContributorPickerOpen, setDirectContributorPickerOpen] = useState(false);
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [lightbox, setLightbox] = useState<{ items: LightboxItem[]; index: number } | null>(null);
@@ -156,9 +160,17 @@ function EventDetailContent() {
       setEntityOrder(Array.isArray(ev.entityOrder) ? ev.entityOrder : []);
       const editorIds = Array.isArray(ev.editorIds) ? ev.editorIds : [];
       setEditors((allUsers ?? []).filter((u) => u != null && editorIds.includes(u.uid)));
+      const contributorIds = Array.isArray(ev.allowedContributorIds) ? ev.allowedContributorIds : [];
+      setDirectContributors((allUsers ?? []).filter((u) => u != null && contributorIds.includes(u.uid)));
       const contribIds = Array.isArray(ev.contributionIds) ? ev.contributionIds : [];
-      const fetched = await Promise.all(contribIds.map((cid) => getContribution(cid)));
-      setContributions(fetched.filter((c): c is Contribution => c !== null));
+      const [fetched, directFetched] = await Promise.all([
+        Promise.all(contribIds.map((cid) => getContribution(cid))),
+        ev.type === "direct" ? getContributionsByDirectEvent(ev.id) : Promise.resolve([]),
+      ]);
+      const merged = new Map<string, Contribution>();
+      fetched.filter((c): c is Contribution => c !== null).forEach((c) => merged.set(c.id, c));
+      directFetched.forEach((c) => merged.set(c.id, c));
+      setContributions(Array.from(merged.values()));
       setLoading(false);
     } catch (err) {
       console.error("[loadData]", err);
@@ -167,7 +179,8 @@ function EventDetailContent() {
   }
 
   async function handleSave() {
-    if (!title.trim() || !categoryId) return;
+    const isDirect = event?.type === "direct";
+    if (!title.trim() || (!isDirect && !categoryId)) return;
     setSaving(true);
     await updateEvent(id, {
       title: title.trim(),
@@ -175,7 +188,7 @@ function EventDetailContent() {
       dateFrom: dateFrom ? new Date(dateFrom) : null,
       dateTo: dateTo ? new Date(dateTo) : null,
       description: description.trim() || null,
-      categoryId,
+      ...(isDirect ? {} : { categoryId }),
     }, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
     setSaving(false);
     setSaved(true);
@@ -241,6 +254,18 @@ function EventDetailContent() {
     await removeEventEditor(id, uid);
     setEditors((prev) => prev.filter((u) => u.uid !== uid));
     setEvent((prev) => prev ? { ...prev, editorIds: (prev.editorIds ?? []).filter((x) => x !== uid) } : prev);
+  }
+
+  async function handleAddDirectContributor(user: AppUser) {
+    await addDirectEventContributor(id, user.uid);
+    setDirectContributors((prev) => [...prev, user]);
+    setEvent((prev) => prev ? { ...prev, allowedContributorIds: [...prev.allowedContributorIds, user.uid] } : prev);
+  }
+
+  async function handleRemoveDirectContributor(uid: string) {
+    await removeDirectEventContributor(id, uid);
+    setDirectContributors((prev) => prev.filter((u) => u.uid !== uid));
+    setEvent((prev) => prev ? { ...prev, allowedContributorIds: (prev.allowedContributorIds ?? []).filter((x) => x !== uid) } : prev);
   }
 
   async function toggleHidden(key: string) {
@@ -309,7 +334,11 @@ function EventDetailContent() {
         <section className="rounded-xl border border-rim bg-surface p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.eventDetail.infoHeading}</h2>
-            {effectiveCategory ? (
+            {event.type === "direct" ? (
+              <span className="rounded-full bg-gold-dim px-2.5 py-0.5 text-xs font-medium text-gold">
+                {t.eventDetail.directBadge}
+              </span>
+            ) : effectiveCategory ? (
               <span className="rounded-full px-2.5 py-0.5 text-xs font-medium text-gold-text" style={{ backgroundColor: effectiveCategory.color }}>
                 {effectiveCategory.name}
               </span>
@@ -344,7 +373,7 @@ function EventDetailContent() {
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t.eventDetail.descriptionPlaceholder} rows={4} className={`${INPUT_CLS} resize-none`} />
           </div>
 
-          {allCategories.length > 0 && (
+          {allCategories.length > 0 && event.type !== "direct" && (
             <div>
               <label className="block text-xs font-medium text-ink-dim mb-2">{t.chronicler.eventGroupLabel} <span className="text-danger">*</span></label>
               <div className="flex flex-wrap gap-2">
@@ -423,13 +452,15 @@ function EventDetailContent() {
                         >
                           <ExternalIcon />
                         </Link>
-                        <button
-                          onClick={() => setRemoveConfirmId(c.id)}
-                          className="rounded p-1 text-ink-subtle hover:text-danger transition-colors"
-                          title={t.eventDetail.removeFromEventTitle}
-                        >
-                          <RemoveFromEventIcon />
-                        </button>
+                        {c.directEventId !== event.id && (
+                          <button
+                            onClick={() => setRemoveConfirmId(c.id)}
+                            className="rounded p-1 text-ink-subtle hover:text-danger transition-colors"
+                            title={t.eventDetail.removeFromEventTitle}
+                          >
+                            <RemoveFromEventIcon />
+                          </button>
+                        )}
                         {isVoiceEntity && hasAudio && (
                           <button
                             onClick={() => toggleHiddenSub(key, "audio")}
@@ -612,12 +643,53 @@ function EventDetailContent() {
           )}
         </section>
 
+        {/* Direct contributors section */}
+        {event.type === "direct" && (
+          <section className="rounded-xl border border-rim bg-surface p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.eventDetail.directContributorsHeading}</h2>
+              <button
+                type="button"
+                onClick={() => setDirectContributorPickerOpen(true)}
+                className="flex items-center gap-1 text-xs text-gold hover:text-gold/80 font-medium"
+              >
+                <PlusIcon /> {t.eventDetail.addContributorBtn}
+              </button>
+            </div>
+            {directContributors.length === 0 ? (
+              <p className="text-xs text-ink-subtle">{t.eventDetail.noDirectContributors}</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {directContributors.map((u) => (
+                  <div key={u.uid} className="flex items-center gap-1.5 rounded-full border border-rim bg-surface-high pl-2 pr-1 py-1">
+                    {u.photoURL ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={u.photoURL} alt="" className="h-4 w-4 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="h-4 w-4 rounded-full bg-rim shrink-0" />
+                    )}
+                    <span className="text-xs text-ink">{u.displayName || u.email}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDirectContributor(u.uid)}
+                      className="ml-0.5 rounded-full p-0.5 text-ink-subtle hover:text-danger hover:bg-danger-dim"
+                      title={t.eventDetail.removeContributorTitle}
+                    >
+                      <RemoveEditorIcon />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
       </main>
 
       {/* Sticky save */}
       <div className="fixed bottom-0 left-0 right-0 border-t border-rim bg-surface px-4 py-3">
         <div className="mx-auto max-w-2xl">
-          <Button size="lg" className="w-full" loading={saving} disabled={!title.trim() || !categoryId} onClick={handleSave}>
+          <Button size="lg" className="w-full" loading={saving} disabled={!title.trim() || (event.type !== "direct" && !categoryId)} onClick={handleSave}>
             {saved ? t.eventDetail.savedBtn : t.eventDetail.saveBtn}
           </Button>
         </div>
@@ -652,6 +724,13 @@ function EventDetailContent() {
         excludeIds={event.editorIds ?? []}
         onConfirm={handleAddEditor}
         onClose={() => setUserPickerOpen(false)}
+      />
+
+      <UserPickerModal
+        open={directContributorPickerOpen}
+        excludeIds={event.allowedContributorIds ?? []}
+        onConfirm={handleAddDirectContributor}
+        onClose={() => setDirectContributorPickerOpen(false)}
       />
 
       <ConfirmModal

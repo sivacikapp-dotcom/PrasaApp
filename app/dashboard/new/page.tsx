@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { NavBar } from "@/components/NavBar";
 import { RouteGuard } from "@/components/RouteGuard";
@@ -18,8 +18,10 @@ import { getLocationName } from "@/lib/geocoding";
 import { savePending } from "@/lib/offlineDb";
 import { getCategories } from "@/lib/categoryService";
 import { getAllUsers } from "@/lib/userService";
+import { getEvent } from "@/lib/eventService";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { UserTagSelector } from "@/components/contributions/UserTagSelector";
-import type { Group } from "@/types/contribution";
+import type { ChronicleEvent, Group } from "@/types/contribution";
 import type { AppUser } from "@/types/user";
 
 const INPUT_CLS =
@@ -29,7 +31,13 @@ function NewContributionForm() {
   const { appUser } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const directEventId = searchParams.get("directEventId");
   const { state: locState, capture: captureLocation } = useLocation();
+  const { prefs: userPrefs, loading: prefsLoading } = useUserPreferences();
+
+  const [directEvent, setDirectEvent] = useState<ChronicleEvent | null>(null);
+  const [directEventDenied, setDirectEventDenied] = useState(false);
 
   const [eventDate, setEventDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [texts, setTexts] = useState<string[]>([""]);
@@ -50,14 +58,26 @@ function NewContributionForm() {
   useEffect(() => { captureLocation(); }, [captureLocation]);
 
   useEffect(() => {
-    if (!appUser) return;
+    if (!appUser || !directEventId) return;
+    getEvent(directEventId).then((ev) => {
+      const isPrivileged = appUser.roles.includes("chronicler") || appUser.roles.includes("admin");
+      const hasAccess = ev != null && ev.type === "direct" && (isPrivileged || ev.allowedContributorIds.includes(appUser.uid));
+      if (hasAccess) setDirectEvent(ev);
+      else setDirectEventDenied(true);
+    });
+  }, [appUser, directEventId]);
+
+  useEffect(() => {
+    if (!appUser || prefsLoading || directEventId) return;
     Promise.all([getCategories(), getAllUsers()]).then(([cats, users]) => {
       const mine = cats.filter((c) => c.allowedUserIds.includes(appUser.uid));
       setAccessibleGroups(mine);
-      setSelectedCategoryIds(new Set(mine.map((c) => c.id)));
+      const defaultIds = userPrefs.defaultGroupIds.filter((id) => mine.some((c) => c.id === id));
+      setSelectedCategoryIds(new Set(defaultIds.length > 0 ? defaultIds : mine.map((c) => c.id)));
       setAllUsers(users);
     });
-  }, [appUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appUser, prefsLoading, directEventId]);
 
   const countFields = useCallback(() => {
     let count = 0;
@@ -110,12 +130,12 @@ function NewContributionForm() {
       setError(t.newContribution.errorMinFields);
       return;
     }
-    if (accessibleGroups.length > 0 && selectedCategoryIds.size === 0 && !noGroupConfirmed) {
+    if (!directEvent && accessibleGroups.length > 0 && selectedCategoryIds.size === 0 && !noGroupConfirmed) {
       setError(t.newContribution.errorNoGroup);
       return;
     }
     // Validate tagged users are in the contribution's selected groups
-    if (taggedUserIds.length > 0) {
+    if (!directEvent && taggedUserIds.length > 0) {
       const allowedInSelectedGroups = new Set(
         accessibleGroups
           .filter((g) => selectedCategoryIds.has(g.id))
@@ -137,7 +157,7 @@ function NewContributionForm() {
       const filteredTexts = texts.filter((t) => t.trim().length > 0);
       const loc = locState.status === "ok" ? locState.data : null;
 
-      if (!navigator.onLine) {
+      if (!directEvent && !navigator.onLine) {
         await savePending({
           id: crypto.randomUUID(),
           contributorId: appUser.uid,
@@ -160,27 +180,40 @@ function NewContributionForm() {
       }
 
       const locationName = loc ? await getLocationName(loc.latitude, loc.longitude) : null;
-      const selectedGroupIds = Array.from(selectedCategoryIds);
-      const selectedGroupObjects = accessibleGroups.filter((g) => selectedGroupIds.includes(g.id));
-      const visibleToIds = [
-        appUser.uid,
-        ...selectedGroupObjects.flatMap((g) => g.allowedUserIds),
-      ].filter((v, i, a) => a.indexOf(v) === i);
 
-      const contribId = await createContribution({
-        contributorId: appUser.uid,
-        contributorName: appUser.displayName,
-        eventDate: new Date(eventDate),
-        texts: filteredTexts,
-        photoUrls: [],
-        videoUrls: [],
-        voices: [],
-        location: loc,
-        locationName,
-        categories: selectedGroupIds,
-        visibleToIds,
-        taggedUserIds,
-      });
+      const contribId = directEvent
+        ? await createContribution({
+            contributorId: appUser.uid,
+            contributorName: appUser.displayName,
+            eventDate: new Date(eventDate),
+            texts: filteredTexts,
+            photoUrls: [],
+            videoUrls: [],
+            voices: [],
+            location: loc,
+            locationName,
+            categories: [],
+            visibleToIds: [appUser.uid, ...directEvent.allowedContributorIds].filter((v, i, a) => a.indexOf(v) === i),
+            taggedUserIds: [],
+            directEvent: { id: directEvent.id, title: directEvent.title, allowedContributorIds: directEvent.allowedContributorIds },
+          })
+        : await createContribution({
+            contributorId: appUser.uid,
+            contributorName: appUser.displayName,
+            eventDate: new Date(eventDate),
+            texts: filteredTexts,
+            photoUrls: [],
+            videoUrls: [],
+            voices: [],
+            location: loc,
+            locationName,
+            categories: Array.from(selectedCategoryIds),
+            visibleToIds: [
+              appUser.uid,
+              ...accessibleGroups.filter((g) => selectedCategoryIds.has(g.id)).flatMap((g) => g.allowedUserIds),
+            ].filter((v, i, a) => a.indexOf(v) === i),
+            taggedUserIds,
+          });
 
       const photoUrls: string[] = [];
       for (const p of photos) {
@@ -211,6 +244,20 @@ function NewContributionForm() {
     }
   }
 
+  if (directEventId && directEventDenied) {
+    return (
+      <>
+        <NavBar />
+        <div className="mx-auto max-w-xl px-4 py-16 text-center space-y-2">
+          <p className="text-sm font-medium text-ink-dim">{t.newContribution.directEventDenied}</p>
+          <button onClick={() => router.push("/events")} className="text-sm text-gold hover:underline">
+            {t.eventDetail.backToEvents}
+          </button>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <NavBar />
@@ -221,6 +268,12 @@ function NewContributionForm() {
           </button>
           <h1 className="text-lg font-semibold text-ink">{t.newContribution.title}</h1>
         </div>
+
+        {directEvent && (
+          <div className="mb-5 rounded-xl bg-gold-dim px-4 py-3 text-sm text-gold">
+            {t.newContribution.directEventBanner(directEvent.title)}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -295,7 +348,7 @@ function NewContributionForm() {
             />
           </div>
 
-          {accessibleGroups.length > 0 && (
+          {!directEvent && accessibleGroups.length > 0 && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-ink-dim">{t.newContribution.groups}</label>
               <div className="flex flex-wrap gap-2">
@@ -340,7 +393,7 @@ function NewContributionForm() {
             </div>
           )}
 
-          {appUser && accessibleGroups.length > 0 && (
+          {appUser && !directEvent && accessibleGroups.length > 0 && (
             <UserTagSelector
               groups={accessibleGroups}
               selectedGroupIds={Array.from(selectedCategoryIds)}
@@ -404,7 +457,9 @@ function NewContributionForm() {
 export default function NewContributionPage() {
   return (
     <RouteGuard requiredRole="contributor">
-      <NewContributionForm />
+      <Suspense fallback={null}>
+        <NewContributionForm />
+      </Suspense>
     </RouteGuard>
   );
 }

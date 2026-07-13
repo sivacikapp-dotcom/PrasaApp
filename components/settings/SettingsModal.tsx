@@ -6,8 +6,10 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useNotificationSettings } from "@/hooks/useNotifications";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPushPermissionState, requestPushPermission } from "@/lib/pushService";
+import { getCategories } from "@/lib/categoryService";
 import type { NotificationPref, NotificationType } from "@/types/notification";
 import { NOTIFICATION_TYPES } from "@/types/notification";
+import type { Group } from "@/types/contribution";
 import type {
   ContributionListPrefs,
   EventListPrefs,
@@ -15,7 +17,7 @@ import type {
   TaggedUsersVisibility,
 } from "@/types/userPreferences";
 
-export type SettingsTab = "contributions" | "events" | "notifications";
+export type SettingsTab = "contributions" | "events" | "notifications" | "groups";
 
 interface Props {
   onClose: () => void;
@@ -32,10 +34,20 @@ export function SettingsModal({ onClose, defaultTab = "contributions" }: Props) 
   const { appUser } = useAuth();
   const [pushState, setPushState] = useState("default");
   const [requestingPush, setRequestingPush] = useState(false);
+  const [accessibleGroups, setAccessibleGroups] = useState<Group[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(true);
 
   useEffect(() => {
     setPushState(getPushPermissionState());
   }, []);
+
+  useEffect(() => {
+    if (!appUser?.uid) return;
+    getCategories().then((cats) => {
+      setAccessibleGroups(cats.filter((c) => c.allowedUserIds.includes(appUser.uid)));
+      setGroupsLoading(false);
+    });
+  }, [appUser?.uid]);
 
   async function handleEnablePush() {
     if (!appUser?.uid) return;
@@ -59,9 +71,16 @@ export function SettingsModal({ onClose, defaultTab = "contributions" }: Props) 
     updatePrefs({ ...prefs, events: { ...prefs.events, [key]: value } });
   }
 
+  function toggleDefaultGroup(groupId: string) {
+    const current = new Set(prefs.defaultGroupIds);
+    if (current.has(groupId)) current.delete(groupId); else current.add(groupId);
+    updatePrefs({ ...prefs, defaultGroupIds: Array.from(current) });
+  }
+
   const tabs: { key: SettingsTab; label: string }[] = [
     { key: "contributions", label: t.settings.tabContributions },
     { key: "events", label: t.settings.tabEvents },
+    { key: "groups", label: t.settings.tabGroups },
     { key: "notifications", label: t.settings.tabNotifications },
   ];
 
@@ -111,6 +130,14 @@ export function SettingsModal({ onClose, defaultTab = "contributions" }: Props) 
               prefs={prefs.events}
               loading={prefsLoading}
               onChange={updateEvent}
+            />
+          )}
+          {activeTab === "groups" && (
+            <GroupsTab
+              groups={accessibleGroups}
+              loading={prefsLoading || groupsLoading}
+              selectedIds={prefs.defaultGroupIds}
+              onToggle={toggleDefaultGroup}
             />
           )}
           {activeTab === "notifications" && (
@@ -229,6 +256,50 @@ function EventsTab({ prefs, loading, onChange }: EventsTabProps) {
         value={prefs.showTaggedUsers}
         onChange={(v) => onChange("showTaggedUsers", v)}
       />
+    </div>
+  );
+}
+
+// ── Groups tab ────────────────────────────────────────────────────────────────
+
+interface GroupsTabProps {
+  groups: Group[];
+  loading: boolean;
+  selectedIds: string[];
+  onToggle: (groupId: string) => void;
+}
+
+function GroupsTab({ groups, loading, selectedIds, onToggle }: GroupsTabProps) {
+  const { t } = useI18n();
+  if (loading) return <LoadingRow />;
+  return (
+    <div className="space-y-2">
+      <SectionHeading>{t.settings.groups.heading}</SectionHeading>
+      <p className="px-3 text-xs text-ink-subtle">{t.settings.groups.hint}</p>
+      {groups.length === 0 ? (
+        <p className="px-3 py-4 text-sm text-ink-subtle">{t.settings.groups.noGroups}</p>
+      ) : (
+        <div className="flex flex-wrap gap-2 px-3 py-2">
+          {groups.map((g) => {
+            const selected = selectedIds.includes(g.id);
+            return (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => onToggle(g.id)}
+                className={`rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
+                  selected
+                    ? "border-transparent text-gold-text"
+                    : "border-rim text-ink-dim hover:border-rim-strong"
+                }`}
+                style={selected ? { backgroundColor: g.color, borderColor: g.color } : {}}
+              >
+                {g.icon ? g.icon + " " + g.name : g.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

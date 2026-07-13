@@ -14,6 +14,7 @@ import { EventGroupCard } from "@/components/contributions/EventGroupCard";
 import { EventCard } from "@/components/contributions/EventCard";
 import { useAllContributions } from "@/hooks/useContributions";
 import { getCategories, getTags } from "@/lib/categoryService";
+import { getAllUsers } from "@/lib/userService";
 import { subscribeToEventGroups, createEventGroup, addContributionsToGroup } from "@/lib/eventGroupService";
 import { subscribeToEvents, createEvent, addContributionsToEvent } from "@/lib/eventService";
 import { EventPickerModal } from "@/components/ui/EventPickerModal";
@@ -25,6 +26,7 @@ import { EventGroupConflictModal } from "@/components/ui/EventGroupConflictModal
 import { checkCategoryConflict, getEffectiveCategoryId, checkEventGroupConflict } from "@/lib/categoryConflictUtils";
 import { updateContributionByChronicler, batchSoftDelete } from "@/lib/contributionService";
 import type { Group, Tag, EventGroup, ChronicleEvent } from "@/types/contribution";
+import type { AppUser } from "@/types/user";
 
 type PageTab = "prispevky" | "skupiny" | "udalosti";
 type ContribFilter = "all" | "pending" | "processed";
@@ -119,6 +121,13 @@ function ChroniclerContent() {
   const [eventSourceIds, setEventSourceIds] = useState<string[]>([]);
   const [creatingEvent, setCreatingEvent] = useState(false);
   const eventTitleRef = useRef<HTMLInputElement>(null);
+
+  const [directEventOpen, setDirectEventOpen] = useState(false);
+  const [directEventTitle, setDirectEventTitle] = useState("");
+  const [directEventContributorIds, setDirectEventContributorIds] = useState<Set<string>>(new Set());
+  const [creatingDirectEvent, setCreatingDirectEvent] = useState(false);
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
+  const directEventTitleRef = useRef<HTMLInputElement>(null);
 
   const [deleteSelectedOpen, setDeleteSelectedOpen] = useState(false);
   const [deletingSelected, setDeletingSelected] = useState(false);
@@ -348,6 +357,35 @@ function ChroniclerContent() {
     setCreatingEvent(false);
     setEventOpen(false);
     exitSelectMode();
+    router.push(`/chronicler/events/${eventId}`);
+  }
+
+  function openDirectEventModal() {
+    setDirectEventTitle("");
+    setDirectEventContributorIds(new Set());
+    if (allUsers.length === 0) getAllUsers().then(setAllUsers);
+    setDirectEventOpen(true);
+    setTimeout(() => directEventTitleRef.current?.focus(), 50);
+  }
+
+  function toggleDirectEventContributor(uid: string) {
+    setDirectEventContributorIds((prev) => toggleSet(prev, uid));
+  }
+
+  async function handleCreateDirectEvent() {
+    if (!appUser || !directEventTitle.trim()) return;
+    setCreatingDirectEvent(true);
+    const eventId = await createEvent({
+      title: directEventTitle.trim(),
+      contributionIds: [],
+      categoryId: null,
+      type: "direct",
+      allowedContributorIds: Array.from(directEventContributorIds),
+      createdBy: appUser.uid,
+      actor: { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL },
+    });
+    setCreatingDirectEvent(false);
+    setDirectEventOpen(false);
     router.push(`/chronicler/events/${eventId}`);
   }
 
@@ -795,6 +833,10 @@ function ChroniclerContent() {
             />
           </div>
 
+          <Button size="sm" variant="secondary" onClick={openDirectEventModal}>
+            <BoltIcon /> {t.chronicler.createDirectEventBtn}
+          </Button>
+
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-xs text-ink-subtle shrink-0">{t.chronicler.sortLabel}</span>
             {EVENT_SORT_OPTIONS.map(({ key, label }) => (
@@ -991,6 +1033,75 @@ function ChroniclerContent() {
         </div>
       </Modal>
 
+      {/* Create direct event modal */}
+      <Modal
+        open={directEventOpen}
+        title={t.chronicler.createDirectEventModalTitle}
+        onClose={() => setDirectEventOpen(false)}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setDirectEventOpen(false)}>{t.chronicler.cancelBtn}</Button>
+            <Button size="sm" loading={creatingDirectEvent} disabled={!directEventTitle.trim()} onClick={handleCreateDirectEvent}>
+              {t.chronicler.createDirectEventSubmitBtn}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-dim">{t.chronicler.createDirectEventDesc}</p>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-ink-dim">{t.chronicler.eventNameLabel} <span className="text-danger">*</span></label>
+            <input
+              ref={directEventTitleRef}
+              value={directEventTitle}
+              onChange={(e) => setDirectEventTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && directEventTitle.trim()) handleCreateDirectEvent(); }}
+              placeholder={t.chronicler.eventNamePlaceholder}
+              className="w-full rounded-xl border border-rim bg-canvas px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-ink-dim">{t.chronicler.directEventContributorsLabel}</label>
+            <p className="text-xs text-ink-subtle">{t.chronicler.directEventContributorsHint}</p>
+            <div className="space-y-1 max-h-52 overflow-y-auto">
+              {allUsers.filter((u) => u.status === "active").map((user) => {
+                const checked = directEventContributorIds.has(user.uid);
+                return (
+                  <label
+                    key={user.uid}
+                    className={`flex items-center gap-3 rounded-lg px-2.5 py-2 cursor-pointer transition-colors ${
+                      checked ? "bg-gold-dim" : "hover:bg-surface-high"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleDirectEventContributor(user.uid)}
+                      className="sr-only"
+                    />
+                    <span
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                        checked ? "border-gold bg-gold" : "border-rim-strong bg-surface"
+                      }`}
+                    >
+                      {checked && (
+                        <svg className="h-2.5 w-2.5 text-gold-text" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+                          <path d="M1.5 5l2.5 2.5 4.5-4.5" />
+                        </svg>
+                      )}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-ink truncate">{user.displayName || user.email}</p>
+                      <p className="text-xs text-ink-subtle truncate">{user.email}</p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Modal>
+
       <GroupPickerModal
         open={addToGroupOpen}
         onConfirm={handleAddToGroup}
@@ -1084,6 +1195,14 @@ function GroupIcon() {
     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
+
+function BoltIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
     </svg>
   );
 }

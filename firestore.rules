@@ -51,7 +51,15 @@ service cloud.firestore {
                        request.auth.uid in resource.data.visibleToIds
                        || resource.data.contributorId == request.auth.uid
                      ));
-      allow create: if isContributor() || isChronicler();
+      allow create: if isChronicler()
+                    || (isContributor() && (
+                         request.resource.data.status == 'pending'
+                         || (
+                           request.resource.data.status == 'processed'
+                           && request.resource.data.directEventId is string
+                           && request.auth.uid in get(/databases/$(database)/documents/events/$(request.resource.data.directEventId)).data.allowedContributorIds
+                         )
+                       ));
       allow update: if isChronicler()
                     || isAdmin()
                     || (isContributor()

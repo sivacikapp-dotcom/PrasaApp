@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import Link from "next/link";
 import { getEvent } from "@/lib/eventService";
-import { getContribution } from "@/lib/contributionService";
+import { getContribution, getContributionsByDirectEvent } from "@/lib/contributionService";
 import { getCategories } from "@/lib/categoryService";
 import { getAllUsers } from "@/lib/userService";
 import { MediaLightbox, type LightboxItem } from "@/components/ui/MediaLightbox";
@@ -89,9 +89,20 @@ function EventDetailContent() {
         setAllUsers(users);
         if (!ev) { setLoading(false); return; }
 
-        if (ev.categoryId) {
+        const isPrivileged = appUser!.roles.includes("chronicler") || appUser!.roles.includes("admin");
+
+        if (ev.type === "direct") {
+          const hasAccess =
+            isPrivileged ||
+            ev.allowedContributorIds.includes(appUser!.uid) ||
+            (ev.editorIds ?? []).includes(appUser!.uid);
+          if (!hasAccess) {
+            setDenied(true);
+            setLoading(false);
+            return;
+          }
+        } else if (ev.categoryId) {
           const cat = allCats.find((c) => c.id === ev.categoryId);
-          const isPrivileged = appUser!.roles.includes("chronicler") || appUser!.roles.includes("admin");
           const hasAccess =
             isPrivileged ||
             (cat && cat.allowedUserIds.includes(appUser!.uid)) ||
@@ -105,12 +116,14 @@ function EventDetailContent() {
         }
 
         setEvent(ev);
-        const fetched = await Promise.all(
-          ev.contributionIds.map((cid) =>
-            getContribution(cid).catch(() => null)
-          )
-        );
-        setContributions(fetched.filter((c): c is Contribution => c !== null));
+        const [fetched, directFetched] = await Promise.all([
+          Promise.all(ev.contributionIds.map((cid) => getContribution(cid).catch(() => null))),
+          ev.type === "direct" ? getContributionsByDirectEvent(ev.id).catch(() => []) : Promise.resolve([]),
+        ]);
+        const merged = new Map<string, Contribution>();
+        fetched.filter((c): c is Contribution => c !== null).forEach((c) => merged.set(c.id, c));
+        directFetched.forEach((c) => merged.set(c.id, c));
+        setContributions(Array.from(merged.values()));
       } catch {
         // silently handle unexpected errors
       } finally {
@@ -142,6 +155,8 @@ function EventDetailContent() {
   const allEntities = buildEntities(contributions, event.entityOrder ?? []);
   const visibleEntities = allEntities.filter((e) => !hiddenSet.has(e.key));
   const dateLabel = buildDateLabel(event, dateFnsLocale);
+  const isPrivileged = appUser!.roles.includes("chronicler") || appUser!.roles.includes("admin");
+  const canContribute = event.type === "direct" && (isPrivileged || event.allowedContributorIds.includes(appUser!.uid));
 
   return (
     <>
@@ -163,6 +178,11 @@ function EventDetailContent() {
               </Link>
             )}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+              {event.type === "direct" && (
+                <span className="rounded-full bg-gold-dim px-2 py-0.5 text-[10px] font-medium text-gold">
+                  {t.eventDetail.directBadge}
+                </span>
+              )}
               {category && (
                 <span className="rounded-full px-2 py-0.5 text-[10px] font-medium text-gold-text" style={{ backgroundColor: category.color }}>
                   {category.icon ? category.icon + " " + category.name : category.name}
@@ -176,6 +196,15 @@ function EventDetailContent() {
               {dateLabel && <span className="text-xs text-ink-subtle">{dateLabel}</span>}
             </div>
           </div>
+          {canContribute && (
+            <Link
+              href={`/dashboard/new?directEventId=${id}`}
+              className="shrink-0 flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1.5 text-xs font-medium text-gold-text transition-opacity hover:opacity-90"
+            >
+              <PlusSmallIcon />
+              <span className="hidden sm:inline">{t.eventDetail.contributeBtn}</span>
+            </Link>
+          )}
           <Link
             href={`/events/${id}/trasa`}
             className="shrink-0 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-gold/20"
@@ -382,6 +411,14 @@ function EditSmallIcon() {
     <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
+function PlusSmallIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+      <path d="M12 5v14M5 12h14" />
     </svg>
   );
 }

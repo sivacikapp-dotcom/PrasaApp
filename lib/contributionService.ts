@@ -17,7 +17,7 @@ import {
 import { db } from "./firebase";
 import type { Contribution, ContributionStatus, GeoLocation, VoiceNote } from "@/types/contribution";
 import { notifyChroniclers } from "./notifyService";
-import { createNotificationsForUsers, type Actor } from "./notificationService";
+import { createNotificationsForUsers, type Actor, type NotificationInput } from "./notificationService";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -75,6 +75,7 @@ function fromFirestore(id: string, data: Record<string, unknown>): Contribution 
     deletedBy: (data.deletedBy as string | null) ?? null,
     visibleToIds: (data.visibleToIds as string[]) ?? [],
     taggedUserIds: (data.taggedUserIds as string[]) ?? [],
+    directEventId: (data.directEventId as string | null) ?? null,
     createdAt: tsToDate(data.createdAt),
     updatedAt: tsToDate(data.updatedAt),
   };
@@ -95,11 +96,16 @@ export interface NewContributionInput {
   categories?: string[];
   visibleToIds?: string[];
   taggedUserIds?: string[];
+  // Set when posting straight into a direct (live) event — skips chronicler processing
+  directEvent?: { id: string; title: string; allowedContributorIds: string[] };
 }
 
 export async function createContribution(input: NewContributionInput): Promise<string> {
+  const isDirect = input.directEvent != null;
+  const { directEvent, ...rest } = input;
+
   const ref = await addDoc(collection(db, "contributions"), {
-    ...input,
+    ...rest,
     eventDate: Timestamp.fromDate(input.eventDate),
     locationName: input.locationName ?? null,
     recordedAt: serverTimestamp(),
@@ -112,16 +118,42 @@ export async function createContribution(input: NewContributionInput): Promise<s
     categories: input.categories ?? [],
     hashtags: [],
     eventGroupIds: [],
-    status: "pending",
+    status: isDirect ? "processed" : "pending",
     deletedAt: null,
     deletedBy: null,
     visibleToIds: input.visibleToIds ?? [input.contributorId],
     taggedUserIds: input.taggedUserIds ?? [],
+    directEventId: directEvent?.id ?? null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  notifyChroniclers(input.contributorName, input.eventDate).catch(() => {});
+
+  if (directEvent) {
+    const notifications: NotificationInput[] = directEvent.allowedContributorIds
+      .filter((uid) => uid !== input.contributorId)
+      .map((uid) => ({
+        userId: uid,
+        type: "contribution_processed",
+        actorId: input.contributorId,
+        actorName: input.contributorName,
+        eventId: directEvent.id,
+        eventTitle: directEvent.title,
+      }));
+    createNotificationsForUsers(notifications);
+  } else {
+    notifyChroniclers(input.contributorName, input.eventDate).catch(() => {});
+  }
   return ref.id;
+}
+
+export async function getContributionsByDirectEvent(eventId: string): Promise<Contribution[]> {
+  const snap = await getDocs(
+    query(collection(db, "contributions"), where("directEventId", "==", eventId))
+  );
+  return snap.docs
+    .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>))
+    .filter((c) => c.status !== "deleted")
+    .sort(compareByEventDate);
 }
 
 export async function getContribution(id: string): Promise<Contribution | null> {

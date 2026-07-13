@@ -103,6 +103,11 @@ function EventsContent() {
                   <Link href={`/events/${ev.id}`} className="block p-4 pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold text-ink flex-1 min-w-0 truncate">{ev.title}</p>
+                      {ev.type === "direct" && (
+                        <span className="shrink-0 rounded-full bg-gold-dim px-2.5 py-0.5 text-xs font-medium text-gold">
+                          {t.eventDetail.directBadge}
+                        </span>
+                      )}
                       {cat && (
                         <span
                           className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium text-gold-text"

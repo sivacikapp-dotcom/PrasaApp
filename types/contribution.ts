@@ -44,6 +44,8 @@ export interface Contribution {
   visibleToIds: string[];
   // Users tagged by the contributor or chronicler
   taggedUserIds: string[];
+  // Set when posted directly into a direct (live) event; bypasses chronicler processing
+  directEventId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -77,6 +79,8 @@ export interface EventGroup {
   updatedAt: Date;
 }
 
+export type EventType = "compiled" | "direct";
+
 // Chronicle event — compiled summary from contributions + chronicler metadata
 // Named ChronicleEvent to avoid collision with the DOM global Event type
 export interface ChronicleEvent {
@@ -94,6 +98,10 @@ export interface ChronicleEvent {
   categories: string[];
   hashtags: string[];
   editorIds: string[];
+  // "direct" events have no seed contribution; invited users post straight into them
+  type: EventType;
+  // Users allowed to post directly into a "direct" event
+  allowedContributorIds: string[];
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
