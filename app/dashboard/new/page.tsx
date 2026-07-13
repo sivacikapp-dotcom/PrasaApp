@@ -18,7 +18,7 @@ import { getLocationName } from "@/lib/geocoding";
 import { savePending } from "@/lib/offlineDb";
 import { getCategories } from "@/lib/categoryService";
 import { getAllUsers } from "@/lib/userService";
-import { getEvent } from "@/lib/eventService";
+import { getEvent, getDirectEventsForUser } from "@/lib/eventService";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { UserTagSelector } from "@/components/contributions/UserTagSelector";
 import type { ChronicleEvent, Group } from "@/types/contribution";
@@ -27,6 +27,8 @@ import type { AppUser } from "@/types/user";
 const INPUT_CLS =
   "w-full rounded-xl border border-rim bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold";
 
+type PostTarget = { type: "groups" } | { type: "direct"; event: ChronicleEvent };
+
 function NewContributionForm() {
   const { appUser } = useAuth();
   const { t } = useI18n();
@@ -34,13 +36,13 @@ function NewContributionForm() {
   const searchParams = useSearchParams();
   const directEventId = searchParams.get("directEventId");
   const { state: locState, capture: captureLocation } = useLocation();
-  const { prefs: userPrefs, loading: prefsLoading } = useUserPreferences();
+  const { prefs: userPrefs, loading: prefsLoading, updatePrefs } = useUserPreferences();
 
-  const [resolvedDirectEvent, setResolvedDirectEvent] = useState<ChronicleEvent | null>(null);
-  const [directEventActive, setDirectEventActive] = useState(false);
+  const [directEvents, setDirectEvents] = useState<ChronicleEvent[]>([]);
+  const [target, setTarget] = useState<PostTarget>({ type: "groups" });
+  const [targetLoaded, setTargetLoaded] = useState(false);
   const [directEventDenied, setDirectEventDenied] = useState(false);
-  const [targetResolved, setTargetResolved] = useState(false);
-  const directEvent = directEventActive ? resolvedDirectEvent : null;
+  const directEvent = target.type === "direct" ? target.event : null;
 
   const [eventDate, setEventDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [texts, setTexts] = useState<string[]>([""]);
@@ -60,49 +62,37 @@ function NewContributionForm() {
 
   useEffect(() => { captureLocation(); }, [captureLocation]);
 
-  function canPostToDirectEvent(ev: ChronicleEvent, uid: string, isPrivileged: boolean): boolean {
-    return isPrivileged || ev.allowedContributorIds.includes(uid) || (ev.editorIds ?? []).includes(uid);
-  }
-
-  // Explicit target: navigated here via a "Prispiet" link with ?directEventId=.
+  // Resolve which direct events this user can post into, then pick the active target:
+  // an explicit ?directEventId= wins, else the saved "last used" default, else groups.
+  // A stale/removed ?directEventId= only denies access for a privileged (chronicler/admin)
+  // fallback lookup; a stale saved default just silently falls back to groups.
   useEffect(() => {
-    if (!appUser || !directEventId) return;
-    getEvent(directEventId).then((ev) => {
-      const isPrivileged = appUser.roles.includes("chronicler") || appUser.roles.includes("admin");
-      const hasAccess = ev != null && ev.type === "direct" && canPostToDirectEvent(ev, appUser.uid, isPrivileged);
-      if (hasAccess) {
-        setResolvedDirectEvent(ev);
-        setDirectEventActive(true);
+    if (!appUser || prefsLoading) return;
+    getDirectEventsForUser(appUser.uid).then(async (evs) => {
+      setDirectEvents(evs);
+      if (directEventId) {
+        const found = evs.find((ev) => ev.id === directEventId);
+        if (found) {
+          setTarget({ type: "direct", event: found });
+        } else {
+          const isPrivileged = appUser.roles.includes("chronicler") || appUser.roles.includes("admin");
+          const ev = isPrivileged ? await getEvent(directEventId) : null;
+          if (ev && ev.type === "direct" && !ev.deletedAt) {
+            setTarget({ type: "direct", event: ev });
+          } else {
+            setDirectEventDenied(true);
+          }
+        }
       } else {
-        setDirectEventDenied(true);
+        const defaultEv = evs.find((ev) => ev.id === userPrefs.defaultDirectEventId);
+        setTarget(defaultEv ? { type: "direct", event: defaultEv } : { type: "groups" });
       }
-      setTargetResolved(true);
+      setTargetLoaded(true);
     });
-  }, [appUser, directEventId]);
+  }, [appUser, prefsLoading, directEventId, userPrefs.defaultDirectEventId]);
 
-  // Implicit target: no explicit param, fall back to the user's saved default direct event.
-  // A stale/removed default must never block ordinary posting, so failures are silent.
   useEffect(() => {
-    if (!appUser || directEventId || prefsLoading) return;
-    if (!userPrefs.defaultDirectEventId) {
-      setTargetResolved(true);
-      return;
-    }
-    getEvent(userPrefs.defaultDirectEventId).then((ev) => {
-      const isPrivileged = appUser.roles.includes("chronicler") || appUser.roles.includes("admin");
-      const hasAccess = ev != null && ev.type === "direct" && !ev.deletedAt && canPostToDirectEvent(ev, appUser.uid, isPrivileged);
-      if (hasAccess) {
-        setResolvedDirectEvent(ev);
-        setDirectEventActive(true);
-      }
-      setTargetResolved(true);
-    });
-  }, [appUser, directEventId, prefsLoading, userPrefs.defaultDirectEventId]);
-
-  // "Zmenit" on the banner (or an explicit target failing) drops directEventActive back to
-  // false, at which point this effect fills in the normal groups picker instead.
-  useEffect(() => {
-    if (!appUser || prefsLoading || !targetResolved || directEventActive) return;
+    if (!appUser || prefsLoading) return;
     Promise.all([getCategories(), getAllUsers()]).then(([cats, users]) => {
       const mine = cats.filter((c) => c.allowedUserIds.includes(appUser.uid));
       setAccessibleGroups(mine);
@@ -111,7 +101,12 @@ function NewContributionForm() {
       setAllUsers(users);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appUser, prefsLoading, targetResolved, directEventActive]);
+  }, [appUser, prefsLoading]);
+
+  function selectTarget(next: PostTarget) {
+    setTarget(next);
+    updatePrefs({ ...userPrefs, defaultDirectEventId: next.type === "direct" ? next.event.id : null });
+  }
 
   const countFields = useCallback(() => {
     let count = 0;
@@ -303,19 +298,6 @@ function NewContributionForm() {
           <h1 className="text-lg font-semibold text-ink">{t.newContribution.title}</h1>
         </div>
 
-        {directEvent && (
-          <div className="mb-5 flex items-center justify-between gap-3 rounded-xl bg-gold-dim px-4 py-3 text-sm text-gold">
-            <span>{t.newContribution.directEventBanner(directEvent.title)}</span>
-            <button
-              type="button"
-              onClick={() => setDirectEventActive(false)}
-              className="shrink-0 text-xs font-medium underline hover:no-underline"
-            >
-              {t.newContribution.directEventChangeBtn}
-            </button>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-ink-dim mb-1.5">{t.newContribution.eventDate}</label>
@@ -389,47 +371,88 @@ function NewContributionForm() {
             />
           </div>
 
-          {!directEvent && accessibleGroups.length > 0 && (
+          {targetLoaded && (directEvents.length > 0 || accessibleGroups.length > 0) && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-ink-dim">{t.newContribution.groups}</label>
-              <div className="flex flex-wrap gap-2">
-                {accessibleGroups.map((g) => {
-                  const selected = selectedCategoryIds.has(g.id);
-                  return (
+              {directEvents.length > 0 && (
+                <>
+                  <label className="block text-sm font-medium text-ink-dim">{t.newContribution.targetHeading}</label>
+                  <div className="flex flex-wrap gap-2">
                     <button
-                      key={g.id}
                       type="button"
-                      onClick={() => toggleGroup(g.id)}
+                      onClick={() => selectTarget({ type: "groups" })}
                       className={`rounded-full px-3 py-1 text-sm font-medium border transition-colors ${
-                        selected
-                          ? "border-transparent text-gold-text"
+                        target.type === "groups"
+                          ? "border-gold bg-gold-dim text-gold"
                           : "border-rim text-ink-dim hover:border-rim-strong"
                       }`}
-                      style={selected ? { backgroundColor: g.color, borderColor: g.color } : {}}
                     >
-                      {g.icon ? g.icon + " " + g.name : g.name}
+                      {t.newContribution.targetGroupsOption}
                     </button>
-                  );
-                })}
-              </div>
+                    {directEvents.map((ev) => (
+                      <button
+                        key={ev.id}
+                        type="button"
+                        onClick={() => selectTarget({ type: "direct", event: ev })}
+                        className={`rounded-full px-3 py-1 text-sm font-medium border transition-colors ${
+                          target.type === "direct" && target.event.id === ev.id
+                            ? "border-gold bg-gold-dim text-gold"
+                            : "border-rim text-ink-dim hover:border-rim-strong"
+                        }`}
+                      >
+                        {ev.title}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
-              {selectedCategoryIds.size === 0 && (
-                <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 space-y-2">
-                  <p className="text-xs font-medium text-warning">
-                    {t.newContribution.noGroupWarning}
-                  </p>
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={noGroupConfirmed}
-                      onChange={(e) => setNoGroupConfirmed(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-gold"
-                    />
-                    <span className="text-xs text-ink-dim">
-                      {t.newContribution.noGroupAcknowledge}
-                    </span>
-                  </label>
-                </div>
+              {target.type === "direct" ? (
+                <p className="text-xs text-ink-subtle">{t.newContribution.directEventNote(target.event.title)}</p>
+              ) : (
+                accessibleGroups.length > 0 && (
+                  <>
+                    <label className="block text-sm font-medium text-ink-dim">{t.newContribution.groups}</label>
+                    <div className="flex flex-wrap gap-2">
+                      {accessibleGroups.map((g) => {
+                        const selected = selectedCategoryIds.has(g.id);
+                        return (
+                          <button
+                            key={g.id}
+                            type="button"
+                            onClick={() => toggleGroup(g.id)}
+                            className={`rounded-full px-3 py-1 text-sm font-medium border transition-colors ${
+                              selected
+                                ? "border-transparent text-gold-text"
+                                : "border-rim text-ink-dim hover:border-rim-strong"
+                            }`}
+                            style={selected ? { backgroundColor: g.color, borderColor: g.color } : {}}
+                          >
+                            {g.icon ? g.icon + " " + g.name : g.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {selectedCategoryIds.size === 0 && (
+                      <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 space-y-2">
+                        <p className="text-xs font-medium text-warning">
+                          {t.newContribution.noGroupWarning}
+                        </p>
+                        <label className="flex items-start gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={noGroupConfirmed}
+                            onChange={(e) => setNoGroupConfirmed(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 shrink-0 accent-gold"
+                          />
+                          <span className="text-xs text-ink-dim">
+                            {t.newContribution.noGroupAcknowledge}
+                          </span>
+                        </label>
+                      </div>
+                    )}
+                  </>
+                )
               )}
             </div>
           )}

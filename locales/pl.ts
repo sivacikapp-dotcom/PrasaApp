@@ -88,9 +88,10 @@ export const pl: Dictionary = {
       "Post musi zawierać co najmniej 2 z tych danych: tekst, lokalizacja GPS, zdjęcie, wiadomość głosowa. Dodaj co najmniej jeden kolejny element.",
     errorNoGroup: "Potwierdź, że post nie zostanie przypisany do żadnej grupy.",
     errorSave: "Nie udało się zapisać postu. Spróbuj ponownie.",
-    directEventBanner: (title: string): string => `Dodajesz post bezpośrednio do zdarzenia: ${title}`,
     directEventDenied: "Nie masz uprawnień, aby dodawać posty do tego zdarzenia.",
-    directEventChangeBtn: "Zmień",
+    targetHeading: "Gdzie chcesz dodać post?",
+    targetGroupsOption: "Grupy",
+    directEventNote: (title: string): string => `Post zostanie dodany bezpośrednio do zdarzenia „${title}" i nie będzie czekać na przetworzenie przez kronikarza.`,
   },
   events: {
     title: "Zdarzenia",
@@ -597,6 +598,9 @@ export const pl: Dictionary = {
     enablePushHint: "Włącz powiadomienia push, aby otrzymywać alerty poza aplikacją.",
     pushGranted: "Powiadomienia push są aktywne",
     pushDenied: "Powiadomienia push są zablokowane przez przeglądarkę",
+    emailHeading: "Powiadomienia e-mail",
+    emailNewContributionLabel: "E-mail o nowym poście",
+    emailNewContributionHint: "Otrzymuj e-mail za każdym razem, gdy ktoś doda nowy post do przetworzenia.",
     typeLabels: {
       user_tagged: "Oznaczenie w poście",
       contribution_added_to_event: "Post dodany do wydarzenia",

@@ -88,9 +88,10 @@ export const cs: Dictionary = {
       "Příspěvek musí obsahovat alespoň 2 z těchto údajů: text, GPS poloha, fotografie, hlasová zpráva. Doplňte alespoň jeden další údaj.",
     errorNoGroup: "Potvrďte, že příspěvek nebude zařazen do žádné skupiny.",
     errorSave: "Nepodařilo se uložit příspěvek. Zkuste znovu.",
-    directEventBanner: (title: string): string => `Přispíváte přímo do události: ${title}`,
     directEventDenied: "Nemáte oprávnění přispívat do této události.",
-    directEventChangeBtn: "Změnit",
+    targetHeading: "Kam chcete přispět?",
+    targetGroupsOption: "Skupiny",
+    directEventNote: (title: string): string => `Příspěvek se přidá přímo do události „${title}" a nebude čekat na zpracování kronikářem.`,
   },
   events: {
     title: "Události",
@@ -597,6 +598,9 @@ export const cs: Dictionary = {
     enablePushHint: "Povolte push notifikace pro upozornění i mimo aplikaci.",
     pushGranted: "Push notifikace jsou aktivní",
     pushDenied: "Push notifikace jsou zablokovány prohlížečem",
+    emailHeading: "E-mailová upozornění",
+    emailNewContributionLabel: "E-mail o novém příspěvku",
+    emailNewContributionHint: "Dostávat e-mail pokaždé, když někdo přidá nový příspěvek ke zpracování.",
     typeLabels: {
       user_tagged: "Označení v příspěvku",
       contribution_added_to_event: "Příspěvek zařazen do události",

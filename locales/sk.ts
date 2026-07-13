@@ -87,9 +87,10 @@ export const sk = {
       "Príspevok musí obsahovať aspoň 2 z týchto údajov: text, GPS poloha, fotografia, hlasová správa. Doplňte aspoň jeden ďalší údaj.",
     errorNoGroup: "Potvrďte, že príspevok nebude zaradený do žiadnej skupiny.",
     errorSave: "Nepodarilo sa uložiť príspevok. Skúste znova.",
-    directEventBanner: (title: string): string => `Prispievate priamo do udalosti: ${title}`,
     directEventDenied: "Nemáte oprávnenie prispievať do tejto udalosti.",
-    directEventChangeBtn: "Zmeniť",
+    targetHeading: "Kam chcete prispieť?",
+    targetGroupsOption: "Skupiny",
+    directEventNote: (title: string): string => `Príspevok sa pridá priamo do udalosti „${title}" a nebude čakať na spracovanie kronikárom.`,
   },
   events: {
     title: "Udalosti",
@@ -596,6 +597,9 @@ export const sk = {
     enablePushHint: "Povoľte push notifikácie pre upozornenia aj mimo aplikácie.",
     pushGranted: "Push notifikácie sú aktívne",
     pushDenied: "Push notifikácie sú zablokované prehliadačom",
+    emailHeading: "E-mailové upozornenia",
+    emailNewContributionLabel: "E-mail o novom príspevku",
+    emailNewContributionHint: "Dostávať e-mail zakaždým, keď niekto pridá nový príspevok na spracovanie.",
     typeLabels: {
       user_tagged: "Označenie v príspevku",
       contribution_added_to_event: "Príspevok zaradený do udalosti",

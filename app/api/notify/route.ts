@@ -26,7 +26,7 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-async function getEmailsByRole(role: string): Promise<string[]> {
+async function getEmailsByRole(role: string, opts?: { requireContributionEmail?: boolean }): Promise<string[]> {
   const { getAdminDb } = await import("@/lib/firebaseAdmin");
   const db = getAdminDb();
   const snap = await db.collection("users")
@@ -34,6 +34,11 @@ async function getEmailsByRole(role: string): Promise<string[]> {
     .where("status", "==", "active")
     .get();
   return snap.docs
+    .filter((d) => {
+      if (!opts?.requireContributionEmail) return true;
+      const prefs = d.data().userPreferences as { emailNewContribution?: boolean } | undefined;
+      return prefs?.emailNewContribution !== false;
+    })
     .map((d) => (d.data().email as string) ?? "")
     .filter(Boolean);
 }
@@ -88,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     if (payload.type === "newContribution") {
       const { contributorName, eventDate } = payload;
-      const to = testEmail ? [testEmail] : await getEmailsByRole("chronicler");
+      const to = testEmail ? [testEmail] : await getEmailsByRole("chronicler", { requireContributionEmail: true });
       if (to.length === 0) return NextResponse.json({ ok: true, skipped: "no chroniclers" });
 
       const { error } = await resend.emails.send({

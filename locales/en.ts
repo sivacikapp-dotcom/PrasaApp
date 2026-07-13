@@ -87,9 +87,10 @@ export const en: Dictionary = {
       "Contribution must contain at least 2 of: text, GPS location, photo, voice message. Please add at least one more item.",
     errorNoGroup: "Please confirm that the contribution will not be assigned to any group.",
     errorSave: "Failed to save contribution. Please try again.",
-    directEventBanner: (title: string): string => `You're contributing directly to: ${title}`,
     directEventDenied: "You don't have permission to contribute to this event.",
-    directEventChangeBtn: "Change",
+    targetHeading: "Where do you want to contribute?",
+    targetGroupsOption: "Groups",
+    directEventNote: (title: string): string => `This contribution will be added directly to "${title}" and won't wait for chronicler processing.`,
   },
   events: {
     title: "Events",
@@ -590,6 +591,9 @@ export const en: Dictionary = {
     enablePushHint: "Enable push notifications to receive alerts outside the app.",
     pushGranted: "Push notifications are active",
     pushDenied: "Push notifications are blocked by your browser",
+    emailHeading: "Email alerts",
+    emailNewContributionLabel: "Email on new contribution",
+    emailNewContributionHint: "Get an email every time someone adds a new contribution for processing.",
     typeLabels: {
       user_tagged: "Tagged in a contribution",
       contribution_added_to_event: "Contribution added to event",

@@ -150,6 +150,10 @@ export function SettingsModal({ onClose, defaultTab = "contributions" }: Props) 
                 updateSettings({ ...notifSettings, [type]: pref })
               }
               onEnablePush={handleEnablePush}
+              isChronicler={appUser?.roles.includes("chronicler") ?? false}
+              emailNewContribution={prefs.emailNewContribution}
+              emailPrefLoading={prefsLoading}
+              onToggleEmailNewContribution={(value) => updatePrefs({ ...prefs, emailNewContribution: value })}
             />
           )}
         </div>
@@ -313,6 +317,10 @@ interface NotifTabProps {
   requestingPush: boolean;
   onUpdatePref: (type: NotificationType, pref: NotificationPref) => void;
   onEnablePush: () => void;
+  isChronicler: boolean;
+  emailNewContribution: boolean;
+  emailPrefLoading: boolean;
+  onToggleEmailNewContribution: (value: boolean) => void;
 }
 
 function NotificationsTab({
@@ -322,6 +330,10 @@ function NotificationsTab({
   requestingPush,
   onUpdatePref,
   onEnablePush,
+  isChronicler,
+  emailNewContribution,
+  emailPrefLoading,
+  onToggleEmailNewContribution,
 }: NotifTabProps) {
   const { t } = useI18n();
   return (
@@ -396,6 +408,30 @@ function NotificationsTab({
           {" — "}{t.notifications.prefDescriptions.off}
         </p>
       </div>
+
+      {isChronicler && (
+        <div className="mt-4 border-t border-rim pt-4">
+          <SectionHeading>{t.notifications.emailHeading}</SectionHeading>
+          {emailPrefLoading ? (
+            <LoadingRow />
+          ) : (
+            <div className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 hover:bg-surface">
+              <div>
+                <p className="text-sm text-ink">{t.notifications.emailNewContributionLabel}</p>
+                <p className="text-xs text-ink-subtle">{t.notifications.emailNewContributionHint}</p>
+              </div>
+              <SegmentedControl<boolean>
+                options={[
+                  { value: true, label: t.settings.optionYes },
+                  { value: false, label: t.settings.optionNo },
+                ]}
+                value={emailNewContribution}
+                onChange={onToggleEmailNewContribution}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

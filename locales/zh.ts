@@ -87,9 +87,10 @@ export const zh: Dictionary = {
       "贡献必须包含以下至少 2 项：文字、GPS 位置、照片、语音消息。请再添加至少一项。",
     errorNoGroup: "请确认该贡献不会分配到任何群组。",
     errorSave: "保存贡献失败，请重试。",
-    directEventBanner: (title: string): string => `您正在直接为活动投稿：${title}`,
     directEventDenied: "您无权为此活动投稿。",
-    directEventChangeBtn: "更改",
+    targetHeading: "您想投稿到哪里？",
+    targetGroupsOption: "群组",
+    directEventNote: (title: string): string => `此贡献将直接添加到活动「${title}」，无需等待记录员处理。`,
   },
   events: {
     title: "活动",
@@ -585,6 +586,9 @@ export const zh: Dictionary = {
     enablePushHint: "启用推送通知，在应用外也能接收提醒。",
     pushGranted: "推送通知已激活",
     pushDenied: "推送通知已被浏览器屏蔽",
+    emailHeading: "邮件提醒",
+    emailNewContributionLabel: "新贡献邮件通知",
+    emailNewContributionHint: "每当有人添加新贡献等待处理时收到邮件通知。",
     typeLabels: {
       user_tagged: "在贡献中被提及",
       contribution_added_to_event: "贡献已加入活动",

@@ -43,7 +43,7 @@ export function QuickCapture() {
   const { appUser } = useAuth();
   const { t } = useI18n();
   const { state: locState, capture: captureLocation } = useLocation();
-  const { prefs: userPrefs, loading: prefsLoading } = useUserPreferences();
+  const { prefs: userPrefs, loading: prefsLoading, updatePrefs } = useUserPreferences();
 
   const [captureStatus, setCaptureStatus] = useState<CaptureStatus>("idle");
   const [accessibleGroups, setAccessibleGroups] = useState<Group[]>([]);
@@ -96,6 +96,12 @@ export function QuickCapture() {
         )
       : [];
     return { categories, visibleToIds };
+  }
+
+  function selectTarget(next: CaptureTarget) {
+    setTarget(next);
+    setPickerOpen(false);
+    updatePrefs({ ...userPrefs, defaultDirectEventId: next.type === "direct" ? next.event.id : null });
   }
 
   function getTargetParams() {
@@ -430,7 +436,7 @@ export function QuickCapture() {
         <div className="space-y-1">
           <button
             type="button"
-            onClick={() => { setTarget({ type: "groups" }); setPickerOpen(false); }}
+            onClick={() => selectTarget({ type: "groups" })}
             className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
               target.type === "groups" ? "bg-gold-dim text-gold font-medium" : "text-ink hover:bg-surface-high"
             }`}
@@ -441,7 +447,7 @@ export function QuickCapture() {
             <button
               key={ev.id}
               type="button"
-              onClick={() => { setTarget({ type: "direct", event: ev }); setPickerOpen(false); }}
+              onClick={() => selectTarget({ type: "direct", event: ev })}
               className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
                 target.type === "direct" && target.event.id === ev.id
                   ? "bg-gold-dim text-gold font-medium"

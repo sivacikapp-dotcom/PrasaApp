@@ -13,6 +13,7 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     events: { ...DEFAULT_USER_PREFERENCES.events, ...saved.events },
     defaultGroupIds: saved.defaultGroupIds ?? DEFAULT_USER_PREFERENCES.defaultGroupIds,
     defaultDirectEventId: saved.defaultDirectEventId ?? DEFAULT_USER_PREFERENCES.defaultDirectEventId,
+    emailNewContribution: saved.emailNewContribution ?? DEFAULT_USER_PREFERENCES.emailNewContribution,
   };
 }
 

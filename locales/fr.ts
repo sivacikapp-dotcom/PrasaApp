@@ -91,9 +91,10 @@ export const fr: Dictionary = {
       "Veuillez confirmer que la contribution ne sera assignée à aucun groupe.",
     errorSave:
       "Impossible d'enregistrer la contribution. Veuillez réessayer.",
-    directEventBanner: (title: string): string => `Vous contribuez directement à : ${title}`,
     directEventDenied: "Vous n'êtes pas autorisé à contribuer à cet événement.",
-    directEventChangeBtn: "Changer",
+    targetHeading: "Où voulez-vous contribuer ?",
+    targetGroupsOption: "Groupes",
+    directEventNote: (title: string): string => `Cette contribution sera ajoutée directement à « ${title} » et n'attendra pas le traitement par un chroniqueur.`,
   },
   events: {
     title: "Événements",
@@ -599,6 +600,9 @@ export const fr: Dictionary = {
     enablePushHint: "Activez les notifications push pour recevoir des alertes en dehors de l'app.",
     pushGranted: "Les notifications push sont actives",
     pushDenied: "Les notifications push sont bloquées par le navigateur",
+    emailHeading: "Alertes par e-mail",
+    emailNewContributionLabel: "E-mail pour toute nouvelle contribution",
+    emailNewContributionHint: "Recevoir un e-mail chaque fois que quelqu'un ajoute une nouvelle contribution à traiter.",
     typeLabels: {
       user_tagged: "Mention dans une contribution",
       contribution_added_to_event: "Contribution ajoutée à un événement",

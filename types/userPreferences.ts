@@ -25,6 +25,8 @@ export interface UserPreferences {
   defaultGroupIds: string[];
   /** Direct event a user's new contributions go into by default, unless changed at entry time. */
   defaultDirectEventId: string | null;
+  /** Whether a chronicler receives an email for every new contribution (default: yes). */
+  emailNewContribution: boolean;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -45,4 +47,5 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   },
   defaultGroupIds: [],
   defaultDirectEventId: null,
+  emailNewContribution: true,
 };
