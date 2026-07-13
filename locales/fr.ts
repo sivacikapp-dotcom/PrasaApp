@@ -93,6 +93,7 @@ export const fr: Dictionary = {
       "Impossible d'enregistrer la contribution. Veuillez réessayer.",
     directEventBanner: (title: string): string => `Vous contribuez directement à : ${title}`,
     directEventDenied: "Vous n'êtes pas autorisé à contribuer à cet événement.",
+    directEventChangeBtn: "Changer",
   },
   events: {
     title: "Événements",
@@ -116,6 +117,9 @@ export const fr: Dictionary = {
     statusError: "Erreur lors de l'enregistrement. Veuillez réessayer.",
     gpsUnavailable: "GPS indisponible",
     gpsCaptureBtn: "Capturer le GPS",
+    targetLabel: "Destination",
+    targetGroups: "Mes groupes",
+    pickerTitle: "Où voulez-vous contribuer ?",
   },
   admin: {
     title: "Administration",
@@ -384,6 +388,8 @@ export const fr: Dictionary = {
     noDirectContributors: "Personne ne peut encore contribuer directement. Ajoutez des utilisateurs qui pourront publier sans traitement par un chroniqueur.",
     removeContributorTitle: "Révoquer l'accès",
     contributeBtn: "Contribuer",
+    setDefaultTitle: "Définir par défaut pour les nouvelles contributions",
+    unsetDefaultTitle: "Par défaut pour les nouvelles contributions (cliquer pour annuler)",
     savedBtn: "✓ Enregistré",
     saveBtn: "Enregistrer l'événement",
     deleteTitle: "Supprimer l'événement",

@@ -89,6 +89,7 @@ export const zh: Dictionary = {
     errorSave: "保存贡献失败，请重试。",
     directEventBanner: (title: string): string => `您正在直接为活动投稿：${title}`,
     directEventDenied: "您无权为此活动投稿。",
+    directEventChangeBtn: "更改",
   },
   events: {
     title: "活动",
@@ -111,6 +112,9 @@ export const zh: Dictionary = {
     statusError: "保存失败，请重试。",
     gpsUnavailable: "GPS 不可用",
     gpsCaptureBtn: "获取 GPS",
+    targetLabel: "目标",
+    targetGroups: "我的群组",
+    pickerTitle: "您想投稿到哪里？",
   },
   admin: {
     title: "管理",
@@ -370,6 +374,8 @@ export const zh: Dictionary = {
     noDirectContributors: "目前还没有人可以直接投稿。添加可以无需编年史管理员处理即可发布帖子的用户。",
     removeContributorTitle: "撤销访问权限",
     contributeBtn: "投稿",
+    setDefaultTitle: "设为新贡献的默认目标",
+    unsetDefaultTitle: "新贡献的默认目标（点击取消）",
     savedBtn: "✓ 已保存",
     saveBtn: "保存活动",
     deleteTitle: "删除活动",

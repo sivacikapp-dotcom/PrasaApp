@@ -4,12 +4,17 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { useLocation } from "@/hooks/useLocation";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { createContribution, updateContribution } from "@/lib/contributionService";
 import { uploadPhoto, uploadVoice, uploadVideo } from "@/lib/storageService";
 import { getLocationName } from "@/lib/geocoding";
 import { savePending } from "@/lib/offlineDb";
 import { getCategories } from "@/lib/categoryService";
-import type { Group } from "@/types/contribution";
+import { getDirectEventsForUser } from "@/lib/eventService";
+import { Modal } from "@/components/ui/Modal";
+import type { ChronicleEvent, Group } from "@/types/contribution";
+
+type CaptureTarget = { type: "groups" } | { type: "direct"; event: ChronicleEvent };
 
 type CaptureStatus = "idle" | "uploading" | "success" | "offline" | "error";
 
@@ -38,9 +43,13 @@ export function QuickCapture() {
   const { appUser } = useAuth();
   const { t } = useI18n();
   const { state: locState, capture: captureLocation } = useLocation();
+  const { prefs: userPrefs, loading: prefsLoading } = useUserPreferences();
 
   const [captureStatus, setCaptureStatus] = useState<CaptureStatus>("idle");
   const [accessibleGroups, setAccessibleGroups] = useState<Group[]>([]);
+  const [directEvents, setDirectEvents] = useState<ChronicleEvent[]>([]);
+  const [target, setTarget] = useState<CaptureTarget>({ type: "groups" });
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const [voiceReady, setVoiceReady] = useState(false);
   const [voiceRecording, setVoiceRecording] = useState(false);
@@ -65,6 +74,16 @@ export function QuickCapture() {
     });
   }, [appUser]);
 
+  useEffect(() => {
+    if (!appUser || prefsLoading) return;
+    getDirectEventsForUser(appUser.uid).then((evs) => {
+      setDirectEvents(evs);
+      const defaultEv = evs.find((ev) => ev.id === userPrefs.defaultDirectEventId);
+      if (defaultEv) setTarget({ type: "direct", event: defaultEv });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appUser, prefsLoading]);
+
   const getLocation = useCallback(() => {
     return locState.status === "ok" ? locState.data : null;
   }, [locState]);
@@ -77,6 +96,21 @@ export function QuickCapture() {
         )
       : [];
     return { categories, visibleToIds };
+  }
+
+  function getTargetParams() {
+    if (target.type === "direct") {
+      const ev = target.event;
+      const visibleToIds = appUser
+        ? [appUser.uid, ...ev.allowedContributorIds].filter((v, i, a) => a.indexOf(v) === i)
+        : [];
+      return {
+        categories: [],
+        visibleToIds,
+        directEvent: { id: ev.id, title: ev.title, allowedContributorIds: ev.allowedContributorIds },
+      };
+    }
+    return getGroupParams();
   }
 
   async function handlePhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -114,7 +148,7 @@ export function QuickCapture() {
           voices: [],
           location: loc,
           locationName,
-          ...getGroupParams(),
+          ...getTargetParams(),
         });
         const photoUrl = await uploadPhoto(file, contribId, appUser.uid);
         await updateContribution(contribId, { photoUrls: [photoUrl] });
@@ -176,7 +210,7 @@ export function QuickCapture() {
               voices: [],
               location: loc,
               locationName,
-              ...getGroupParams(),
+              ...getTargetParams(),
             });
             const voiceUrl = await uploadVoice(blob, contribId, appUser.uid);
             await updateContribution(contribId, { voices: [{ url: voiceUrl, transcript: null }] });
@@ -249,7 +283,7 @@ export function QuickCapture() {
           voices: [],
           location: loc,
           locationName,
-          ...getGroupParams(),
+          ...getTargetParams(),
         });
         const videoUrl = await uploadVideo(file, contribId, appUser.uid);
         await updateContribution(contribId, { videoUrls: [videoUrl] });
@@ -277,6 +311,22 @@ export function QuickCapture() {
           <GpsIndicator status={locState.status} onRetry={captureLocation} />
         </div>
       </div>
+
+      {/* Target selector */}
+      {directEvents.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="mb-3 flex w-full items-center justify-between gap-2 rounded-lg bg-surface-high px-3 py-2 text-xs text-ink-dim hover:text-ink"
+        >
+          <span>
+            {t.quickCapture.targetLabel}: <strong className="font-semibold text-ink">
+              {target.type === "direct" ? target.event.title : t.quickCapture.targetGroups}
+            </strong>
+          </span>
+          <ChevronDownSmallIcon />
+        </button>
+      )}
 
       {/* Buttons row */}
       <div className="flex flex-wrap gap-2">
@@ -375,7 +425,43 @@ export function QuickCapture() {
       {captureStatus === "error" && (
         <p className="mt-2.5 text-xs text-danger">{t.quickCapture.statusError}</p>
       )}
+
+      <Modal open={pickerOpen} title={t.quickCapture.pickerTitle} onClose={() => setPickerOpen(false)}>
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => { setTarget({ type: "groups" }); setPickerOpen(false); }}
+            className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
+              target.type === "groups" ? "bg-gold-dim text-gold font-medium" : "text-ink hover:bg-surface-high"
+            }`}
+          >
+            {t.quickCapture.targetGroups}
+          </button>
+          {directEvents.map((ev) => (
+            <button
+              key={ev.id}
+              type="button"
+              onClick={() => { setTarget({ type: "direct", event: ev }); setPickerOpen(false); }}
+              className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
+                target.type === "direct" && target.event.id === ev.id
+                  ? "bg-gold-dim text-gold font-medium"
+                  : "text-ink hover:bg-surface-high"
+              }`}
+            >
+              {ev.title}
+            </button>
+          ))}
+        </div>
+      </Modal>
     </div>
+  );
+}
+
+function ChevronDownSmallIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
   );
 }
 

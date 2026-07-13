@@ -89,6 +89,7 @@ export const sk = {
     errorSave: "Nepodarilo sa uložiť príspevok. Skúste znova.",
     directEventBanner: (title: string): string => `Prispievate priamo do udalosti: ${title}`,
     directEventDenied: "Nemáte oprávnenie prispievať do tejto udalosti.",
+    directEventChangeBtn: "Zmeniť",
   },
   events: {
     title: "Udalosti",
@@ -111,6 +112,9 @@ export const sk = {
     statusError: "Chyba pri ukladaní. Skúste znova.",
     gpsUnavailable: "GPS nedostupné",
     gpsCaptureBtn: "Zachytiť GPS",
+    targetLabel: "Cieľ",
+    targetGroups: "Moje skupiny",
+    pickerTitle: "Kam chcete prispieť?",
   },
   admin: {
     title: "Správa",
@@ -379,6 +383,8 @@ export const sk = {
     noDirectContributors: "Zatiaľ nikto nemôže prispievať priamo. Pridajte používateľov, ktorí budú môcť pridávať príspevky bez spracovania kronikárom.",
     removeContributorTitle: "Odobrať prístup",
     contributeBtn: "Prispieť",
+    setDefaultTitle: "Nastaviť ako predvolené pre nové príspevky",
+    unsetDefaultTitle: "Predvolené pre nové príspevky (kliknutím zrušíte)",
     savedBtn: "✓ Uložené",
     saveBtn: "Uložiť udalosť",
     deleteTitle: "Odstrániť udalosť",

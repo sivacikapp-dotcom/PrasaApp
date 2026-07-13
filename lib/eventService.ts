@@ -256,6 +256,13 @@ export async function getEventsForUser(
   });
 }
 
+export async function getDirectEventsForUser(uid: string): Promise<ChronicleEvent[]> {
+  const all = await getEvents();
+  return all.filter(
+    (ev) => ev.type === "direct" && (ev.allowedContributorIds.includes(uid) || ev.editorIds.includes(uid))
+  );
+}
+
 export async function addEventEditor(eventId: string, uid: string): Promise<void> {
   await updateDoc(doc(db, "events", eventId), {
     editorIds: arrayUnion(uid),

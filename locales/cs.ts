@@ -90,6 +90,7 @@ export const cs: Dictionary = {
     errorSave: "Nepodařilo se uložit příspěvek. Zkuste znovu.",
     directEventBanner: (title: string): string => `Přispíváte přímo do události: ${title}`,
     directEventDenied: "Nemáte oprávnění přispívat do této události.",
+    directEventChangeBtn: "Změnit",
   },
   events: {
     title: "Události",
@@ -113,6 +114,9 @@ export const cs: Dictionary = {
     statusError: "Chyba při ukládání. Zkuste znovu.",
     gpsUnavailable: "GPS nedostupné",
     gpsCaptureBtn: "Zachytit GPS",
+    targetLabel: "Cíl",
+    targetGroups: "Moje skupiny",
+    pickerTitle: "Kam chcete přispět?",
   },
   admin: {
     title: "Správa",
@@ -381,6 +385,8 @@ export const cs: Dictionary = {
     noDirectContributors: "Zatím nikdo nemůže přispívat přímo. Přidejte uživatele, kteří budou moci přidávat příspěvky bez zpracování kronikářem.",
     removeContributorTitle: "Odebrat přístup",
     contributeBtn: "Přispět",
+    setDefaultTitle: "Nastavit jako výchozí pro nové příspěvky",
+    unsetDefaultTitle: "Výchozí pro nové příspěvky (kliknutím zrušíte)",
     savedBtn: "✓ Uloženo",
     saveBtn: "Uložit událost",
     deleteTitle: "Odstranit událost",

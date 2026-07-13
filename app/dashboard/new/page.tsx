@@ -36,8 +36,11 @@ function NewContributionForm() {
   const { state: locState, capture: captureLocation } = useLocation();
   const { prefs: userPrefs, loading: prefsLoading } = useUserPreferences();
 
-  const [directEvent, setDirectEvent] = useState<ChronicleEvent | null>(null);
+  const [resolvedDirectEvent, setResolvedDirectEvent] = useState<ChronicleEvent | null>(null);
+  const [directEventActive, setDirectEventActive] = useState(false);
   const [directEventDenied, setDirectEventDenied] = useState(false);
+  const [targetResolved, setTargetResolved] = useState(false);
+  const directEvent = directEventActive ? resolvedDirectEvent : null;
 
   const [eventDate, setEventDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [texts, setTexts] = useState<string[]>([""]);
@@ -57,18 +60,49 @@ function NewContributionForm() {
 
   useEffect(() => { captureLocation(); }, [captureLocation]);
 
+  function canPostToDirectEvent(ev: ChronicleEvent, uid: string, isPrivileged: boolean): boolean {
+    return isPrivileged || ev.allowedContributorIds.includes(uid) || (ev.editorIds ?? []).includes(uid);
+  }
+
+  // Explicit target: navigated here via a "Prispiet" link with ?directEventId=.
   useEffect(() => {
     if (!appUser || !directEventId) return;
     getEvent(directEventId).then((ev) => {
       const isPrivileged = appUser.roles.includes("chronicler") || appUser.roles.includes("admin");
-      const hasAccess = ev != null && ev.type === "direct" && (isPrivileged || ev.allowedContributorIds.includes(appUser.uid));
-      if (hasAccess) setDirectEvent(ev);
-      else setDirectEventDenied(true);
+      const hasAccess = ev != null && ev.type === "direct" && canPostToDirectEvent(ev, appUser.uid, isPrivileged);
+      if (hasAccess) {
+        setResolvedDirectEvent(ev);
+        setDirectEventActive(true);
+      } else {
+        setDirectEventDenied(true);
+      }
+      setTargetResolved(true);
     });
   }, [appUser, directEventId]);
 
+  // Implicit target: no explicit param, fall back to the user's saved default direct event.
+  // A stale/removed default must never block ordinary posting, so failures are silent.
   useEffect(() => {
-    if (!appUser || prefsLoading || directEventId) return;
+    if (!appUser || directEventId || prefsLoading) return;
+    if (!userPrefs.defaultDirectEventId) {
+      setTargetResolved(true);
+      return;
+    }
+    getEvent(userPrefs.defaultDirectEventId).then((ev) => {
+      const isPrivileged = appUser.roles.includes("chronicler") || appUser.roles.includes("admin");
+      const hasAccess = ev != null && ev.type === "direct" && !ev.deletedAt && canPostToDirectEvent(ev, appUser.uid, isPrivileged);
+      if (hasAccess) {
+        setResolvedDirectEvent(ev);
+        setDirectEventActive(true);
+      }
+      setTargetResolved(true);
+    });
+  }, [appUser, directEventId, prefsLoading, userPrefs.defaultDirectEventId]);
+
+  // "Zmenit" on the banner (or an explicit target failing) drops directEventActive back to
+  // false, at which point this effect fills in the normal groups picker instead.
+  useEffect(() => {
+    if (!appUser || prefsLoading || !targetResolved || directEventActive) return;
     Promise.all([getCategories(), getAllUsers()]).then(([cats, users]) => {
       const mine = cats.filter((c) => c.allowedUserIds.includes(appUser.uid));
       setAccessibleGroups(mine);
@@ -77,7 +111,7 @@ function NewContributionForm() {
       setAllUsers(users);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appUser, prefsLoading, directEventId]);
+  }, [appUser, prefsLoading, targetResolved, directEventActive]);
 
   const countFields = useCallback(() => {
     let count = 0;
@@ -270,8 +304,15 @@ function NewContributionForm() {
         </div>
 
         {directEvent && (
-          <div className="mb-5 rounded-xl bg-gold-dim px-4 py-3 text-sm text-gold">
-            {t.newContribution.directEventBanner(directEvent.title)}
+          <div className="mb-5 flex items-center justify-between gap-3 rounded-xl bg-gold-dim px-4 py-3 text-sm text-gold">
+            <span>{t.newContribution.directEventBanner(directEvent.title)}</span>
+            <button
+              type="button"
+              onClick={() => setDirectEventActive(false)}
+              className="shrink-0 text-xs font-medium underline hover:no-underline"
+            >
+              {t.newContribution.directEventChangeBtn}
+            </button>
           </div>
         )}
 

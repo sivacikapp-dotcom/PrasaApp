@@ -23,6 +23,8 @@ export interface UserPreferences {
   events: EventListPrefs;
   /** Group IDs preselected by default when creating a new contribution. */
   defaultGroupIds: string[];
+  /** Direct event a user's new contributions go into by default, unless changed at entry time. */
+  defaultDirectEventId: string | null;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -42,4 +44,5 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
     showTaggedUsers: "yes",
   },
   defaultGroupIds: [],
+  defaultDirectEventId: null,
 };

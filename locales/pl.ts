@@ -90,6 +90,7 @@ export const pl: Dictionary = {
     errorSave: "Nie udało się zapisać postu. Spróbuj ponownie.",
     directEventBanner: (title: string): string => `Dodajesz post bezpośrednio do zdarzenia: ${title}`,
     directEventDenied: "Nie masz uprawnień, aby dodawać posty do tego zdarzenia.",
+    directEventChangeBtn: "Zmień",
   },
   events: {
     title: "Zdarzenia",
@@ -113,6 +114,9 @@ export const pl: Dictionary = {
     statusError: "Błąd podczas zapisywania. Spróbuj ponownie.",
     gpsUnavailable: "GPS niedostępne",
     gpsCaptureBtn: "Zarejestruj GPS",
+    targetLabel: "Cel",
+    targetGroups: "Moje grupy",
+    pickerTitle: "Gdzie chcesz dodać post?",
   },
   admin: {
     title: "Zarządzanie",
@@ -380,6 +384,8 @@ export const pl: Dictionary = {
     noDirectContributors: "Nikt jeszcze nie może dodawać postów bezpośrednio. Dodaj użytkowników, którzy będą mogli publikować bez przetwarzania przez kronikarza.",
     removeContributorTitle: "Cofnij dostęp",
     contributeBtn: "Dodaj post",
+    setDefaultTitle: "Ustaw jako domyślne dla nowych postów",
+    unsetDefaultTitle: "Domyślne dla nowych postów (kliknij, aby anulować)",
     savedBtn: "✓ Zapisano",
     saveBtn: "Zapisz zdarzenie",
     deleteTitle: "Usuń zdarzenie",

@@ -89,6 +89,7 @@ export const en: Dictionary = {
     errorSave: "Failed to save contribution. Please try again.",
     directEventBanner: (title: string): string => `You're contributing directly to: ${title}`,
     directEventDenied: "You don't have permission to contribute to this event.",
+    directEventChangeBtn: "Change",
   },
   events: {
     title: "Events",
@@ -111,6 +112,9 @@ export const en: Dictionary = {
     statusError: "Error saving. Please try again.",
     gpsUnavailable: "GPS unavailable",
     gpsCaptureBtn: "Capture GPS",
+    targetLabel: "Target",
+    targetGroups: "My groups",
+    pickerTitle: "Where do you want to contribute?",
   },
   admin: {
     title: "Admin",
@@ -375,6 +379,8 @@ export const en: Dictionary = {
     noDirectContributors: "No one can contribute directly yet. Add users who will be able to post without chronicler processing.",
     removeContributorTitle: "Remove access",
     contributeBtn: "Contribute",
+    setDefaultTitle: "Set as default for new contributions",
+    unsetDefaultTitle: "Default for new contributions (click to unset)",
     savedBtn: "✓ Saved",
     saveBtn: "Save event",
     deleteTitle: "Delete event",

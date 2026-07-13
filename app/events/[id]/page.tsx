@@ -9,6 +9,7 @@ import { PageSpinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import Link from "next/link";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { getEvent } from "@/lib/eventService";
 import { getContribution, getContributionsByDirectEvent } from "@/lib/contributionService";
 import { getCategories } from "@/lib/categoryService";
@@ -72,6 +73,7 @@ function EventDetailContent() {
   const { appUser } = useAuth();
   const { t, dateFnsLocale } = useI18n();
   const router = useRouter();
+  const { prefs, updatePrefs } = useUserPreferences();
 
   const [event, setEvent] = useState<ChronicleEvent | null>(null);
   const [contributions, setContributions] = useState<Contribution[]>([]);
@@ -156,7 +158,14 @@ function EventDetailContent() {
   const visibleEntities = allEntities.filter((e) => !hiddenSet.has(e.key));
   const dateLabel = buildDateLabel(event, dateFnsLocale);
   const isPrivileged = appUser!.roles.includes("chronicler") || appUser!.roles.includes("admin");
-  const canContribute = event.type === "direct" && (isPrivileged || event.allowedContributorIds.includes(appUser!.uid));
+  const canContribute =
+    event.type === "direct" &&
+    (isPrivileged || event.allowedContributorIds.includes(appUser!.uid) || (event.editorIds ?? []).includes(appUser!.uid));
+  const isDefaultTarget = prefs.defaultDirectEventId === event.id;
+
+  function toggleDefaultTarget() {
+    updatePrefs({ ...prefs, defaultDirectEventId: isDefaultTarget ? null : event!.id });
+  }
 
   return (
     <>
@@ -196,6 +205,18 @@ function EventDetailContent() {
               {dateLabel && <span className="text-xs text-ink-subtle">{dateLabel}</span>}
             </div>
           </div>
+          {canContribute && (
+            <button
+              type="button"
+              onClick={toggleDefaultTarget}
+              className={`shrink-0 flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors ${
+                isDefaultTarget ? "border-gold bg-gold-dim text-gold" : "border-rim text-ink-subtle hover:text-ink"
+              }`}
+              title={isDefaultTarget ? t.eventDetail.unsetDefaultTitle : t.eventDetail.setDefaultTitle}
+            >
+              <StarIcon filled={isDefaultTarget} />
+            </button>
+          )}
           {canContribute && (
             <Link
               href={`/dashboard/new?directEventId=${id}`}
@@ -411,6 +432,22 @@ function EditSmallIcon() {
     <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      className="h-3.5 w-3.5 shrink-0"
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
   );
 }
