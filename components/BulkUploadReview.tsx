@@ -11,7 +11,6 @@ import { useI18n } from "@/contexts/I18nContext";
 import { getAuthHeaders } from "@/lib/authHeaders";
 import { getLocationName } from "@/lib/geocoding";
 import { createContribution, updateContribution } from "@/lib/contributionService";
-import { addContributionsToEvent } from "@/lib/eventService";
 import { uploadPhoto, uploadVideo } from "@/lib/storageService";
 import { createNotificationsForUsers } from "@/lib/notificationService";
 import { Button } from "@/components/ui/Button";
@@ -477,8 +476,17 @@ export function BulkUploadReview({ event }: Props) {
         contributionIds.push(contribId);
       }
 
-      const actor = { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL };
-      await addContributionsToEvent(event.id, contributionIds, actor);
+      // Attaching to the event writes to the "events" collection, which
+      // firestore.rules restricts to chroniclers/admins — a plain contributor
+      // can't do this directly, so it's done server-side (with its own
+      // bulkUploadContributorIds check) instead of via lib/eventService.ts.
+      const attachHeaders = await getAuthHeaders();
+      const attachRes = await fetch("/api/bulk-upload/attach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...attachHeaders },
+        body: JSON.stringify({ eventId: event.id, contributionIds }),
+      });
+      if (!attachRes.ok) throw new Error("attach failed");
 
       const chroniclerIds = [...new Set([event.createdBy, ...event.editorIds])].filter((uid) => uid !== appUser.uid);
       createNotificationsForUsers(

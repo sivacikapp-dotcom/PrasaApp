@@ -36,6 +36,7 @@ export const transcribeLimiter  = makeRateLimiter(10, "1 m");  // 10 prepisov/mi
 export const notifyLimiter      = makeRateLimiter(20, "1 m");  // 20 emailov/min/user
 export const pushNotifyLimiter  = makeRateLimiter(30, "1 m");  // 30 push správ/min/user
 export const convertHeicLimiter = makeRateLimiter(60, "1 m");  // 60 HEIC konverzií/min/user (hromadný upload)
+export const bulkUploadAttachLimiter = makeRateLimiter(10, "1 m");  // 10 priradení k eventu/min/user
 
 /**
  * @param failClosed - ak true, odmietne požiadavku keď Redis nie je nakonfigurovaný.
