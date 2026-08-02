@@ -388,6 +388,7 @@ function ChroniclerDetailContent() {
         editorIds: [],
         type: "compiled",
         allowedContributorIds: [],
+        bulkUploadContributorIds: [],
         createdBy: appUser.uid,
         createdAt: new Date(),
         updatedAt: new Date(),

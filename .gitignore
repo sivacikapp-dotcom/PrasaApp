@@ -30,6 +30,9 @@ yarn-error.log*
 # Firebase service account key — NEVER commit!
 service-account.json
 
+# Local state for scripts/bulk-import-media.mjs — dedup manifests, not for version control
+/.import-manifest/
+
 # vercel
 .vercel
 

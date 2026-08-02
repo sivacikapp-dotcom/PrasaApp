@@ -7,7 +7,9 @@ export type NotificationType =
   | "user_added_to_group"
   | "user_removed_from_group"
   | "contribution_processed"
-  | "access_request";
+  | "access_request"
+  | "bulk_upload_access_granted"
+  | "bulk_upload_submitted";
 
 export type NotificationPref = "push" | "in_app" | "off";
 
@@ -21,6 +23,8 @@ export interface NotificationSettings {
   user_removed_from_group: NotificationPref;
   contribution_processed: NotificationPref;
   access_request: NotificationPref;
+  bulk_upload_access_granted: NotificationPref;
+  bulk_upload_submitted: NotificationPref;
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -33,6 +37,8 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   user_removed_from_group: "in_app",
   contribution_processed: "in_app",
   access_request: "push",
+  bulk_upload_access_granted: "push",
+  bulk_upload_submitted: "in_app",
 };
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
@@ -45,6 +51,8 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   "user_removed_from_group",
   "contribution_processed",
   "access_request",
+  "bulk_upload_access_granted",
+  "bulk_upload_submitted",
 ];
 
 export interface AppNotification {

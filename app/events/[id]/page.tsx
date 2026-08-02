@@ -235,6 +235,16 @@ function EventDetailContent() {
             <RouteSmallIcon />
             <span className="hidden sm:inline">{t.trasa.viewTrasa}</span>
           </Link>
+          {event.bulkUploadContributorIds.includes(appUser!.uid) && (
+            <Link
+              href={`/events/${id}/bulk-upload`}
+              className="shrink-0 flex items-center gap-1.5 rounded-lg border border-rim px-2.5 py-1.5 text-xs font-medium text-ink-dim transition-colors hover:bg-surface-high hover:text-ink"
+              title={t.eventDetail.bulkUploadEntryBtn}
+            >
+              <PlusSmallIcon />
+              <span className="hidden sm:inline">{t.eventDetail.bulkUploadEntryBtn}</span>
+            </Link>
+          )}
         </div>
 
         {/* Description */}

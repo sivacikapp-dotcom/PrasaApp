@@ -1,36 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { fetchFile } from '@ffmpeg/util';
+import { loadFFmpeg } from '@/lib/ffmpeg';
 
 interface Props {
   source: string;
   fileName: string;
   onSave: (file: File) => void;
   onClose: () => void;
-}
-
-let _ffmpeg: FFmpeg | null = null;
-let _loading: Promise<FFmpeg> | null = null;
-
-function loadFFmpeg(): Promise<FFmpeg> {
-  if (_ffmpeg?.loaded) return Promise.resolve(_ffmpeg);
-  if (_loading) return _loading;
-  _loading = (async () => {
-    const ffmpeg = new FFmpeg();
-    const [coreURL, wasmURL] = await Promise.all([
-      toBlobURL('/ffmpeg/ffmpeg-core.js', 'text/javascript'),
-      toBlobURL('/ffmpeg/ffmpeg-core.wasm', 'application/wasm'),
-    ]);
-    await ffmpeg.load({ coreURL, wasmURL });
-    _ffmpeg = ffmpeg;
-    return ffmpeg;
-  })().catch((e: unknown) => {
-    _loading = null; // allow retry on failure
-    throw e;
-  });
-  return _loading;
 }
 
 function fmt(s: number): string {

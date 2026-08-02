@@ -43,6 +43,12 @@ function buildBody(payload: PushPayload): string {
         : "Nový spracovaný príspevok vo vašej skupine";
     case "access_request":
       return actorName ? `${actorName} požiadal o prístup do aplikácie` : "Nová žiadosť o prístup do aplikácie";
+    case "bulk_upload_access_granted":
+      return eventTitle ? `Môžete hromadne nahrávať fotky a videá do udalosti „${eventTitle}"` : "Máte nový prístup k hromadnému nahrávaniu";
+    case "bulk_upload_submitted":
+      return actorName && eventTitle
+        ? `${actorName} hromadne nahral(a) fotky/videá do udalosti „${eventTitle}"`
+        : "Hromadne nahraté fotky/videá čakajú na kontrolu";
     default:
       return "Nová notifikácia z Kroniky";
   }

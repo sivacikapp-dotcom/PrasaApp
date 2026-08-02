@@ -48,6 +48,10 @@ export function NotificationItem({ notification, onRead, onClose }: Props) {
         return m.contribution_processed(actorName, categoryName ?? "");
       case "access_request":
         return m.access_request(actorName);
+      case "bulk_upload_access_granted":
+        return m.bulk_upload_access_granted(eventTitle ?? "");
+      case "bulk_upload_submitted":
+        return m.bulk_upload_submitted(actorName, eventTitle ?? "");
     }
   })();
 

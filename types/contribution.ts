@@ -102,6 +102,9 @@ export interface ChronicleEvent {
   type: EventType;
   // Users allowed to post directly into a "direct" event
   allowedContributorIds: string[];
+  // Users granted access to the bulk photo/video upload flow for this event
+  // (any event type — unlike allowedContributorIds, which is direct-only)
+  bulkUploadContributorIds: string[];
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;

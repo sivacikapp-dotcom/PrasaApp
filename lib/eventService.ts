@@ -44,6 +44,7 @@ function fromFirestore(id: string, data: Record<string, unknown>): ChronicleEven
     editorIds: (data.editorIds as string[]) ?? [],
     type: (data.type as EventType) ?? "compiled",
     allowedContributorIds: (data.allowedContributorIds as string[]) ?? [],
+    bulkUploadContributorIds: (data.bulkUploadContributorIds as string[]) ?? [],
     createdBy: (data.createdBy as string) ?? "",
     createdAt: tsToDate(data.createdAt),
     updatedAt: tsToDate(data.updatedAt),
@@ -121,6 +122,7 @@ export async function createEvent(input: {
     editorIds: [],
     type,
     allowedContributorIds: directContributorIds,
+    bulkUploadContributorIds: [],
     createdBy: input.createdBy,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -287,6 +289,44 @@ export async function addDirectEventContributor(eventId: string, uid: string): P
 export async function removeDirectEventContributor(eventId: string, uid: string): Promise<void> {
   await updateDoc(doc(db, "events", eventId), {
     allowedContributorIds: arrayRemove(uid),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function getBulkUploadEventsForUser(uid: string): Promise<ChronicleEvent[]> {
+  const all = await getEvents();
+  return all.filter((ev) => ev.bulkUploadContributorIds.includes(uid));
+}
+
+export async function addBulkUploadContributor(
+  eventId: string,
+  uid: string,
+  actor?: Actor
+): Promise<void> {
+  const ref = doc(db, "events", eventId);
+  await updateDoc(ref, {
+    bulkUploadContributorIds: arrayUnion(uid),
+    updatedAt: serverTimestamp(),
+  });
+
+  if (actor && actor.uid !== uid) {
+    const snap = await getDoc(ref);
+    const eventTitle = (snap.data()?.title as string) ?? "";
+    createNotificationsForUsers([{
+      userId: uid,
+      type: "bulk_upload_access_granted",
+      actorId: actor.uid,
+      actorName: actor.displayName,
+      actorPhotoURL: actor.photoURL,
+      eventId,
+      eventTitle,
+    }]);
+  }
+}
+
+export async function removeBulkUploadContributor(eventId: string, uid: string): Promise<void> {
+  await updateDoc(doc(db, "events", eventId), {
+    bulkUploadContributorIds: arrayRemove(uid),
     updatedAt: serverTimestamp(),
   });
 }

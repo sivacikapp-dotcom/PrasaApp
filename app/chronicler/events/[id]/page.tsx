@@ -25,6 +25,8 @@ import {
   removeEventEditor,
   addDirectEventContributor,
   removeDirectEventContributor,
+  addBulkUploadContributor,
+  removeBulkUploadContributor,
 } from "@/lib/eventService";
 import { getCategories } from "@/lib/categoryService";
 import { getAllUsers } from "@/lib/userService";
@@ -124,6 +126,8 @@ function EventDetailContent() {
   const [userPickerOpen, setUserPickerOpen] = useState(false);
   const [directContributors, setDirectContributors] = useState<AppUser[]>([]);
   const [directContributorPickerOpen, setDirectContributorPickerOpen] = useState(false);
+  const [bulkUploadContributors, setBulkUploadContributors] = useState<AppUser[]>([]);
+  const [bulkUploadPickerOpen, setBulkUploadPickerOpen] = useState(false);
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [lightbox, setLightbox] = useState<{ items: LightboxItem[]; index: number } | null>(null);
@@ -162,6 +166,8 @@ function EventDetailContent() {
       setEditors((allUsers ?? []).filter((u) => u != null && editorIds.includes(u.uid)));
       const contributorIds = Array.isArray(ev.allowedContributorIds) ? ev.allowedContributorIds : [];
       setDirectContributors((allUsers ?? []).filter((u) => u != null && contributorIds.includes(u.uid)));
+      const bulkUploadIds = Array.isArray(ev.bulkUploadContributorIds) ? ev.bulkUploadContributorIds : [];
+      setBulkUploadContributors((allUsers ?? []).filter((u) => u != null && bulkUploadIds.includes(u.uid)));
       const contribIds = Array.isArray(ev.contributionIds) ? ev.contributionIds : [];
       const [fetched, directFetched] = await Promise.all([
         Promise.all(contribIds.map((cid) => getContribution(cid))),
@@ -266,6 +272,18 @@ function EventDetailContent() {
     await removeDirectEventContributor(id, uid);
     setDirectContributors((prev) => prev.filter((u) => u.uid !== uid));
     setEvent((prev) => prev ? { ...prev, allowedContributorIds: (prev.allowedContributorIds ?? []).filter((x) => x !== uid) } : prev);
+  }
+
+  async function handleAddBulkUploadContributor(user: AppUser) {
+    await addBulkUploadContributor(id, user.uid, appUser ? { uid: appUser.uid, displayName: appUser.displayName, photoURL: appUser.photoURL } : undefined);
+    setBulkUploadContributors((prev) => [...prev, user]);
+    setEvent((prev) => prev ? { ...prev, bulkUploadContributorIds: [...prev.bulkUploadContributorIds, user.uid] } : prev);
+  }
+
+  async function handleRemoveBulkUploadContributor(uid: string) {
+    await removeBulkUploadContributor(id, uid);
+    setBulkUploadContributors((prev) => prev.filter((u) => u.uid !== uid));
+    setEvent((prev) => prev ? { ...prev, bulkUploadContributorIds: (prev.bulkUploadContributorIds ?? []).filter((x) => x !== uid) } : prev);
   }
 
   async function toggleHidden(key: string) {
@@ -684,6 +702,45 @@ function EventDetailContent() {
           </section>
         )}
 
+        {/* Bulk upload contributors section */}
+        <section className="rounded-xl border border-rim bg-surface p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">{t.eventDetail.bulkUploadHeading}</h2>
+            <button
+              type="button"
+              onClick={() => setBulkUploadPickerOpen(true)}
+              className="flex items-center gap-1 text-xs text-gold hover:text-gold/80 font-medium"
+            >
+              <PlusIcon /> {t.eventDetail.addBulkUploadBtn}
+            </button>
+          </div>
+          {bulkUploadContributors.length === 0 ? (
+            <p className="text-xs text-ink-subtle">{t.eventDetail.noBulkUploadContributors}</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {bulkUploadContributors.map((u) => (
+                <div key={u.uid} className="flex items-center gap-1.5 rounded-full border border-rim bg-surface-high pl-2 pr-1 py-1">
+                  {u.photoURL ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={u.photoURL} alt="" className="h-4 w-4 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="h-4 w-4 rounded-full bg-rim shrink-0" />
+                  )}
+                  <span className="text-xs text-ink">{u.displayName || u.email}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveBulkUploadContributor(u.uid)}
+                    className="ml-0.5 rounded-full p-0.5 text-ink-subtle hover:text-danger hover:bg-danger-dim"
+                    title={t.eventDetail.removeBulkUploadTitle}
+                  >
+                    <RemoveEditorIcon />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
       </main>
 
       {/* Sticky save */}
@@ -731,6 +788,13 @@ function EventDetailContent() {
         excludeIds={event.allowedContributorIds ?? []}
         onConfirm={handleAddDirectContributor}
         onClose={() => setDirectContributorPickerOpen(false)}
+      />
+
+      <UserPickerModal
+        open={bulkUploadPickerOpen}
+        excludeIds={event.bulkUploadContributorIds ?? []}
+        onConfirm={handleAddBulkUploadContributor}
+        onClose={() => setBulkUploadPickerOpen(false)}
       />
 
       <ConfirmModal
